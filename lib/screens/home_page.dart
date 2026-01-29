@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 // Importa herramientas para formatear la entrada de texto (solo números)
 import 'package:flutter/services.dart';
 import 'history_page.dart';
+import 'optionspage.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -21,7 +22,6 @@ class _HomePageState extends State<HomePage> {
 
   // Variable para simular si hay recomendaciones previas
   bool tieneRecomendaciones = true;
-
 
   // Lista de unidades de medida disponibles
   final List<String> unidadesMedida = [
@@ -237,9 +237,23 @@ class _HomePageState extends State<HomePage> {
 
               // Botón para generar recomendación
               ElevatedButton(
-                onPressed: generarRecomendacion,
+                onPressed: () {
+                  generarRecomendacion();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => OptionsPage(
+                        presupuesto: presupuestoController.text,
+                        area: extensionController.text,
+                        unidad: unidadSeleccionada!,
+                        tipoTerreno: tipoTerrenoSeleccionado,
+                      ),
+                    ),
+                  );
+                },
+
                 child: const Text(
-                  'Generar recomendación',
+                  'Generar recomendaciónes',
                   style: TextStyle(fontSize: 16),
                 ),
               ),
