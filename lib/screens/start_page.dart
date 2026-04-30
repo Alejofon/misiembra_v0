@@ -260,26 +260,21 @@ class _StartPageState extends State<StartPage> {
   }
 
   // Guarda el perfil del agricultor en almacenamiento local
+
   Future<void> saveProfile() async {
-    // Obtiene acceso al almacenamiento local del dispositivo
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-
-    // Guarda el nombre del agricultor
     await prefs.setString('nombre_agricultor', nombreController.text.trim());
-
-    // Guarda el departamento seleccionado
     await prefs.setString('departamento', departamentoSeleccionado!);
-
-    // Guarda el municipio seleccionado
     await prefs.setString('municipio', municipioSeleccionado!);
 
-    // Muestra confirmación al usuario
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Perfil guardado correctamente'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Perfil guardado correctamente'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   // Función que valida que todos los campos estén diligenciados

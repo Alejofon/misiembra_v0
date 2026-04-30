@@ -1,8 +1,6 @@
-// Importa el paquete principal de Flutter para construir la interfaz
 import 'package:flutter/material.dart';
-
-// Importa herramientas para formatear la entrada de texto (solo números)
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'history_page.dart';
 import 'optionspage.dart';
 
@@ -14,16 +12,13 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // Controlador para el campo de presupuesto
   final TextEditingController presupuestoController = TextEditingController();
-
-  // Controlador para el campo de extensión del terreno
   final TextEditingController extensionController = TextEditingController();
-
-  // Variable para simular si hay recomendaciones previas
-  bool tieneRecomendaciones = true;
-
-  // Lista de unidades de medida disponibles
+  
+  bool tieneRecomendaciones = false;
+  String? departamento;
+  String? municipio;
+  
   final List<String> unidadesMedida = [
     'Metros cuadrados',
     'Hectáreas',
@@ -31,11 +26,9 @@ class _HomePageState extends State<HomePage> {
     'Acres',
     'Kilómetros cuadrados',
   ];
-
-  // Unidad seleccionada por el usuario
+  
   String? unidadSeleccionada;
-
-  // Tipo de terreno (opcional)
+  
   final List<String> tiposTerreno = [
     'Plano',
     'Montañoso',
@@ -44,140 +37,105 @@ class _HomePageState extends State<HomePage> {
     'Arcilloso',
     'Mixto',
   ];
-
-  // Tipo de terreno seleccionado
+  
   String? tipoTerrenoSeleccionado;
 
-  // Función para validar que los campos obligatorios estén completos
-  bool validarCampos() {
-    // Obtiene el texto del presupuesto sin espacios
-    final String presupuesto = presupuestoController.text.trim();
-
-    // Obtiene el texto de la extensión sin espacios
-    final String extension = extensionController.text.trim();
-
-    // Valida que el presupuesto no esté vacío
-    if (presupuesto.isEmpty) {
-      return false;
-    }
-
-    // Valida que la extensión no esté vacía
-    if (extension.isEmpty) {
-      return false;
-    }
-
-    // Valida que se haya seleccionado una unidad de medida
-    if (unidadSeleccionada == null) {
-      return false;
-    }
-
-    // Si pasa todas las validaciones
-    return true;
+  @override
+  void initState() {
+    super.initState();
+    _cargarPerfil();
   }
 
-  // Función que en el futuro llamará a la API de OpenAI
-  void generarRecomendacion() {
-    // Primero valida los campos
-    bool camposValidos = validarCampos();
+  Future<void> _cargarPerfil() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      departamento = prefs.getString('departamento');
+      municipio = prefs.getString('municipio');
+    });
+  }
 
-    if (!camposValidos) {
-      // Muestra mensaje si falta información
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Por favor completa presupuesto, extensión y unidad de medida',
-          ),
-        ),
-      );
-      return;
-    }
-
-    // Aquí más adelante irá la llamada real a la API
-    // Por ahora solo mostramos los datos capturados como prueba
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Consulta generada:\n'
-          'Presupuesto: ${presupuestoController.text}\n'
-          'Extensión: ${extensionController.text} $unidadSeleccionada\n'
-          'Tipo de terreno: ${tipoTerrenoSeleccionado ?? "No especificado"}',
-        ),
-      ),
-    );
+  bool validarCampos() {
+    if (presupuestoController.text.trim().isEmpty) return false;
+    if (extensionController.text.trim().isEmpty) return false;
+    if (unidadSeleccionada == null) return false;
+    if (departamento == null || municipio == null) return false;
+    return true;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Barra superior
       appBar: AppBar(
         title: const Text('MiSiembra - Consulta'),
         centerTitle: true,
       ),
-
-      // Contenido principal con margen
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-
-        // Permite scroll si la pantalla es pequeña
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Título principal
               const Text(
                 'Datos para la recomendación agrícola',
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
-
               const SizedBox(height: 20),
-
-              // Texto explicativo
               const Text(
                 'Ingresa la información básica para generar una recomendación '
                 'adaptada a tu capacidad y tipo de terreno.',
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 40),
-
-              // Botón para ver recomendaciones anteriores (solo si existen)
-              if (tieneRecomendaciones)
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const HistoryPage(),
+              const SizedBox(height: 20),
+              
+              // Mostrar datos del perfil cargados
+              Card(
+                color: Colors.green.shade50,
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.person, color: Colors.green),
+                          const SizedBox(width: 8),
+                          Text('Perfil cargado: $departamento - $municipio'),
+                        ],
                       ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                  ),
-                  child: const Text(
-                    'Ver recomendaciones anteriores',
-                    style: TextStyle(fontSize: 18),
+                    ],
                   ),
                 ),
-
+              ),
+              
+              const SizedBox(height: 20),
+              
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const HistoryPage()),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                ),
+                child: const Text(
+                  'Ver recomendaciones anteriores',
+                  style: TextStyle(fontSize: 18),
+                ),
+              ),
               const SizedBox(height: 30),
-
-              // Campo de presupuesto (solo números)
               TextField(
                 controller: presupuestoController,
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: const InputDecoration(
-                  labelText: 'Presupuesto disponible',
+                  labelText: 'Presupuesto disponible (COP)',
                   hintText: 'Ejemplo: 1500000',
                   border: OutlineInputBorder(),
                 ),
               ),
-
               const SizedBox(height: 20),
-
-              // Campo de extensión del terreno (solo números)
               TextField(
                 controller: extensionController,
                 keyboardType: TextInputType.number,
@@ -188,16 +146,13 @@ class _HomePageState extends State<HomePage> {
                   border: OutlineInputBorder(),
                 ),
               ),
-
               const SizedBox(height: 20),
-
-              // Selector de unidad de medida
               DropdownButtonFormField<String>(
                 decoration: const InputDecoration(
                   labelText: 'Unidad de medida',
                   border: OutlineInputBorder(),
                 ),
-                initialValue: unidadSeleccionada,
+                value: unidadSeleccionada,
                 items: unidadesMedida.map((String unidad) {
                   return DropdownMenuItem<String>(
                     value: unidad,
@@ -210,16 +165,13 @@ class _HomePageState extends State<HomePage> {
                   });
                 },
               ),
-
               const SizedBox(height: 20),
-
-              // Selector opcional de tipo de terreno
               DropdownButtonFormField<String>(
                 decoration: const InputDecoration(
                   labelText: 'Tipo de terreno (opcional)',
                   border: OutlineInputBorder(),
                 ),
-                initialValue: tipoTerrenoSeleccionado,
+                value: tipoTerrenoSeleccionado,
                 items: tiposTerreno.map((String tipo) {
                   return DropdownMenuItem<String>(
                     value: tipo,
@@ -232,13 +184,20 @@ class _HomePageState extends State<HomePage> {
                   });
                 },
               ),
-
               const SizedBox(height: 30),
-
-              // Botón para generar recomendación
               ElevatedButton(
                 onPressed: () {
-                  generarRecomendacion();
+                  if (!validarCampos()) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Por favor completa presupuesto, extensión, unidad de medida y asegúrate de tener perfil cargado',
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+                  
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -247,13 +206,14 @@ class _HomePageState extends State<HomePage> {
                         area: extensionController.text,
                         unidad: unidadSeleccionada!,
                         tipoTerreno: tipoTerrenoSeleccionado,
+                        departamento: departamento!,
+                        municipio: municipio!,
                       ),
                     ),
                   );
                 },
-
                 child: const Text(
-                  'Generar recomendaciónes',
+                  'Generar recomendaciones',
                   style: TextStyle(fontSize: 16),
                 ),
               ),
@@ -266,7 +226,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
-    // Libera los controladores cuando la pantalla se destruye
     presupuestoController.dispose();
     extensionController.dispose();
     super.dispose();

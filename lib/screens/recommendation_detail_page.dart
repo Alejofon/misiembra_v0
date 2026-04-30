@@ -1,18 +1,25 @@
-// Importa Flutter Material para usar widgets de interfaz
 import 'package:flutter/material.dart';
 
 // Pantalla que muestra la recomendación detallada del cultivo
 class RecommendationDetailPage extends StatelessWidget {
-  const RecommendationDetailPage({super.key});
+  // ✅ DEFINIR los parámetros que recibe
+  final String cultivo;
+  final String zona;
+  final String presupuesto;
+  final String tiempoCosecha;
+
+  // ✅ Constructor con los parámetros requeridos
+  const RecommendationDetailPage({
+    super.key,
+    required this.cultivo,
+    required this.zona,
+    required this.presupuesto,
+    required this.tiempoCosecha,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // Datos simulados (luego vendrán de la API)
-    final String cultivo = "Maíz criollo";
-    final String zona = "Zona templada - Altitud media (1.500 - 2.000 msnm)";
-    final String presupuesto = "\$1.200.000 COP";
-    final String tiempoCosecha = "4 a 5 meses";
-
+    // Pasos generales para cualquier cultivo
     final List<String> pasos = [
       "Preparar el terreno eliminando maleza y nivelando el suelo.",
       "Realizar surcos con una separación de 80 cm entre filas.",
@@ -22,21 +29,18 @@ class RecommendationDetailPage extends StatelessWidget {
       "Monitorear plagas semanalmente."
     ];
 
+    // Riesgos generales
     final List<String> riesgos = [
       "Exceso de lluvia puede causar pudrición de raíces.",
       "Presencia de gusano cogollero en etapas tempranas.",
       "Suelos muy compactos reducen el crecimiento."
     ];
 
-    // Scaffold define la estructura general de la pantalla
     return Scaffold(
-      // Barra superior
       appBar: AppBar(
         title: const Text("Recomendación agrícola"),
         centerTitle: true,
       ),
-
-      // Cuerpo principal con scroll
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(
@@ -60,7 +64,7 @@ class RecommendationDetailPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        cultivo,
+                        cultivo, // ✅ Usa el parámetro recibido
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -71,26 +75,25 @@ class RecommendationDetailPage extends StatelessWidget {
                   ),
                 ),
               ),
-
               const SizedBox(height: 20),
 
               // Información general
               _buildInfoSection(
                 icon: Icons.location_on,
                 title: "Zona recomendada",
-                content: zona,
+                content: zona, // ✅ Usa el parámetro recibido
               ),
 
               _buildInfoSection(
                 icon: Icons.attach_money,
                 title: "Presupuesto estimado",
-                content: presupuesto,
+                content: presupuesto, // ✅ Usa el parámetro recibido
               ),
 
               _buildInfoSection(
                 icon: Icons.calendar_month,
                 title: "Tiempo aproximado de cosecha",
-                content: tiempoCosecha,
+                content: tiempoCosecha, // ✅ Usa el parámetro recibido
               ),
 
               const SizedBox(height: 20),
