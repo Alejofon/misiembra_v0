@@ -41,6 +41,7 @@ class _HistoryPageState extends State<HistoryPage> {
   Future<void> _limpiarHistorial() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('historial');
+    if (!mounted) return;
     setState(() {
       historial = [];
     });

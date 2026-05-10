@@ -1,25 +1,29 @@
-// Importa el paquete principal de Flutter para usar widgets de interfaz gráfica
 import 'package:flutter/material.dart';
-
-// Permite convertir texto JSON en estructuras Dart (listas, mapas, etc.)
 import 'dart:convert';
-
-// Permite leer archivos desde la carpeta assets del proyecto
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'home_page.dart';
+import '../services/location_service.dart';
+import '../services/geocoding_service.dart';
 
-// Clase principal del widget con estado
-// Esta clase solo crea el estado, NO dibuja la interfaz
 class StartPage extends StatefulWidget {
   const StartPage({super.key});
 
-  // Crea la instancia del estado asociado a este widget
   @override
   State<StartPage> createState() => _StartPageState();
 }
 
-// Clase que contiene el estado, la lógica y la interfaz gráfica
+String normalizar(String texto) {
+  // Pasa a mayúsculas, quita acentos y caracteres diacríticos
+  final conAcentos = 'ÁÉÍÓÚÜÑ';
+  final sinAcentos = 'AEIOUUN';
+  String salida = texto.toUpperCase();
+  for (int i = 0; i < conAcentos.length; i++) {
+    salida = salida.replaceAll(conAcentos[i], sinAcentos[i]);
+  }
+  return salida.trim();
+}
+
 class _StartPageState extends State<StartPage> {
   // Lista completa del JSON cargado
   List<dynamic> departamentosData = [];
@@ -37,235 +41,143 @@ class _StartPageState extends State<StartPage> {
   // Controlador para el campo de nombre del agricultor
   final TextEditingController nombreController = TextEditingController();
 
-  // Este método se ejecuta automáticamente cuando se crea la pantalla
+  // Variables para GPS
+  bool obteniendoUbicacion = false;
+  double? lat;
+  double? lon;
+
   @override
   void initState() {
     super.initState();
     cargarDepartamentos();
   }
 
-  // Libera recursos cuando la pantalla se destruye
   @override
   void dispose() {
     nombreController.dispose();
     super.dispose();
   }
 
-  // Lee el archivo JSON desde assets y lo convierte en estructura Dart
   Future<void> cargarDepartamentos() async {
-    // Lee el archivo como texto desde la ruta indicada
     final String jsonString = await rootBundle.loadString(
       'assets/json/colombia.min.json',
     );
-
-    // Convierte el texto JSON en una lista dinámica de Dart
     final List<dynamic> data = json.decode(jsonString);
-
-    // Actualiza el estado de la pantalla
     setState(() {
-      // Guarda la lista completa
       departamentosData = data;
-
-      // Extrae solo los nombres de los departamentos
       departamentos = data
           .map<String>((dep) => dep['departamento'].toString())
           .toList();
     });
   }
 
-  // Actualiza la lista de municipios según el departamento elegido
   void actualizarMunicipios(String departamento) {
-    // Busca el departamento seleccionado dentro de la lista completa
     final dep = departamentosData.firstWhere(
       (d) => d['departamento'] == departamento,
+      orElse: () => {'ciudades': []},
     );
-
-    // Actualiza el estado con la nueva lista de municipios
     setState(() {
-      municipios = List<String>.from(dep['ciudades']);
+      municipios = List<String>.from(dep['ciudades'] ?? []);
       municipioSeleccionado = null; // Limpia selección anterior
     });
   }
 
-  // Método que construye la interfaz gráfica de la pantalla
-  @override
-  Widget build(BuildContext context) {
-    // Scaffold es la estructura base visual de la pantalla
-    return Scaffold(
-      // Barra superior de la aplicación
-      appBar: AppBar(
-        // Texto que aparece en la parte superior
-        title: const Text('MiSiembra - Perfil del agricultor'),
-        // Centra el título
-        centerTitle: true,
-      ),
+  // Nuevo método para obtener ubicación actual
+  Future<void> _usarUbicacionActual() async {
+    setState(() => obteniendoUbicacion = true);
+    try {
+      debugPrint('🔍 Iniciando obtención de ubicación...');
+      final position = await LocationService.getCurrentPosition();
+      if (position != null) {
+        debugPrint(
+          '✅ Ubicación obtenida: ${position.latitude}, ${position.longitude}',
+        );
+        lat = position.latitude;
+        lon = position.longitude;
+        final geocoded = await GeocodingService.reverseGeocode(lat!, lon!);
+        // Dentro de _usarUbicacionActual, después de obtener geocoded:
+        if (geocoded != null) {
+          final deptRecibido = geocoded['departamento'] ?? '';
+          final muniRecibido = geocoded['municipio'] ?? '';
 
-      // Contenido principal de la pantalla
-      body: Padding(
-        // Espacio alrededor del contenido
-        padding: const EdgeInsets.all(16.0),
+          // Normalizar el departamento recibido para buscar en la lista
+          final deptNormalizado = normalizar(deptRecibido);
 
-        // Permite hacer scroll si la pantalla es pequeña
-        child: SingleChildScrollView(
-          // Organiza los widgets en columna (vertical)
-          child: Column(
-            // Estira los elementos al ancho disponible
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          // Buscar el nombre exacto del JSON que coincida normalizado
+          String? deptExacto;
+          for (final d in departamentos) {
+            if (normalizar(d) == deptNormalizado) {
+              deptExacto = d;
+              break;
+            }
+          }
 
-            // Lista de widgets visibles en pantalla
-            children: [
-              // Título principal
-              const Text(
-                'Bienvenido a MiSiembra',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
+          setState(() {
+            if (deptExacto != null) {
+              departamentoSeleccionado = deptExacto;
+              actualizarMunicipios(deptExacto);
 
-              // Espacio vertical
-              const SizedBox(height: 20),
+              // Ahora buscar el municipio normalizado dentro de la lista de municipios
+              final muniNormalizado = normalizar(muniRecibido);
+              String? muniExacto;
+              for (final m in municipios) {
+                if (normalizar(m) == muniNormalizado) {
+                  muniExacto = m;
+                  break;
+                }
+              }
 
-              // Texto descriptivo
-              const Text(
-                'Por favor completa la información básica de tu finca para recibir recomendaciones agrícolas.',
-                textAlign: TextAlign.center,
-              ),
-
-              // Espacio vertical
-              const SizedBox(height: 30),
-
-              // Campo de texto para el nombre del agricultor
-              TextField(
-                // Controlador para leer el valor escrito por el usuario
-                controller: nombreController,
-                inputFormatters: [
-                  // Limita la longitud máxima a 50 caracteres
-                  LengthLimitingTextInputFormatter(50),
-                  FilteringTextInputFormatter.allow(
-                    RegExp(r"[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]"),
-                  ),
-                ],
-
-                // Apariencia del campo
-                decoration: const InputDecoration(
-                  labelText: 'Nombre del agricultor',
-                  border: OutlineInputBorder(),
+              if (muniExacto != null) {
+                municipioSeleccionado = muniExacto;
+              } else {
+                municipioSeleccionado = null; // El usuario deberá elegir otro
+              }
+            } else {
+              // Departamento no encontrado en la lista, revertir
+              departamentoSeleccionado = null;
+              municipioSeleccionado = null;
+            }
+          });
+          if (mounted && deptExacto == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'No se pudo reconocer el departamento "$deptRecibido". Selecciona manualmente.',
                 ),
               ),
-
-              // Espacio vertical
-              const SizedBox(height: 20),
-
-              // Selector de Departamento
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                  labelText: 'Departamento',
-                  border: OutlineInputBorder(),
-                ),
-
-                menuMaxHeight: 500,
-
-                // Valor seleccionado actualmente
-                initialValue: departamentoSeleccionado,
-
-                // Lista de opciones del selector
-                items: departamentos.map((String dep) {
-                  return DropdownMenuItem<String>(value: dep, child: Text(dep));
-                }).toList(),
-
-                // Se ejecuta cuando el usuario cambia el valor
-                onChanged: (value) {
-                  setState(() {
-                    departamentoSeleccionado = value;
-                    municipios = []; // Limpia municipios anteriores
-                  });
-
-                  // Si hay un valor válido, filtra municipios
-                  if (value != null) {
-                    actualizarMunicipios(value);
-                  }
-                },
-              ),
-
-              // Espacio vertical
-              const SizedBox(height: 20),
-
-              // Selector de Municipio
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                  labelText: 'Municipio',
-                  border: OutlineInputBorder(),
-                ),
-
-                menuMaxHeight: 500,
-
-                // Valor seleccionado actualmente
-                initialValue: municipioSeleccionado,
-
-                // Lista de opciones del selector
-                items: municipios.map((String mun) {
-                  return DropdownMenuItem<String>(value: mun, child: Text(mun));
-                }).toList(),
-
-                // Se ejecuta cuando el usuario cambia el valor
-                onChanged: (value) {
-                  setState(() {
-                    municipioSeleccionado = value;
-                  });
-                },
-              ),
-
-              // Espacio vertical
-              const SizedBox(height: 30),
-
-              // Botón principal
-              ElevatedButton(
-                // Acción al presionar el botón
-                onPressed: () {
-                  // Llama a la función de validación
-                  bool camposValidos = validarCampos();
-
-                  // Si algún campo no está bien, muestra un mensaje y no continúa
-                  if (!camposValidos) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Por favor completa todos los campos antes de continuar',
-                        ),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return; // Detiene la ejecución del botón aquí
-                  }
-
-                  // Si todo está bien, aquí luego llamarás a saveProfile()
-                  saveProfile();
-                  // Navega a la pantalla Home
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => const HomePage()),
-                  );
-                },
-
-                // Texto del botón
-                child: const Text(
-                  'Guardar perfil',
-                  style: TextStyle(fontSize: 16),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+            );
+          }
+        }
+      } else {
+        debugPrint('⚠️ No se pudo obtener la posición');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No se pudo obtener la ubicación')),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error al obtener ubicación: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al obtener ubicación: $e')),
+        );
+      }
+    } finally {
+      setState(() => obteniendoUbicacion = false);
+    }
   }
 
-  // Guarda el perfil del agricultor en almacenamiento local
-
+  // Guarda el perfil en SharedPreferences
   Future<void> saveProfile() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('nombre_agricultor', nombreController.text.trim());
     await prefs.setString('departamento', departamentoSeleccionado!);
     await prefs.setString('municipio', municipioSeleccionado!);
+    if (lat != null && lon != null) {
+      await prefs.setDouble('lat', lat!);
+      await prefs.setDouble('lon', lon!);
+    }
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -277,27 +189,142 @@ class _StartPageState extends State<StartPage> {
     }
   }
 
-  // Función que valida que todos los campos estén diligenciados
   bool validarCampos() {
-    // Obtiene el texto del nombre y elimina espacios al inicio y al final
     final String nombre = nombreController.text.trim();
-
-    // Si el nombre está vacío, la validación falla
-    if (nombre.isEmpty) {
-      return false;
-    }
-
-    // Si no se ha seleccionado un departamento, la validación falla
-    if (departamentoSeleccionado == null) {
-      return false;
-    }
-
-    // Si no se ha seleccionado un municipio, la validación falla
-    if (municipioSeleccionado == null) {
-      return false;
-    }
-
-    // Si pasó todas las validaciones, todo está correcto
+    if (nombre.isEmpty) return false;
+    if (departamentoSeleccionado == null) return false;
+    if (municipioSeleccionado == null) return false;
     return true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('MiSiembra - Perfil del agricultor'),
+        centerTitle: true,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Bienvenido a MiSiembra',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Por favor completa la información básica de tu finca para recibir recomendaciones agrícolas.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 30),
+
+              // Campo de texto para el nombre del agricultor
+              TextField(
+                controller: nombreController,
+                inputFormatters: [
+                  LengthLimitingTextInputFormatter(50),
+                  FilteringTextInputFormatter.allow(
+                    RegExp(r"[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]"),
+                  ),
+                ],
+                decoration: const InputDecoration(
+                  labelText: 'Nombre del agricultor',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Selector de Departamento
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: 'Departamento',
+                  border: OutlineInputBorder(),
+                ),
+                menuMaxHeight: 500,
+                initialValue: departamentoSeleccionado,
+                items: departamentos.map((String dep) {
+                  return DropdownMenuItem<String>(value: dep, child: Text(dep));
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    departamentoSeleccionado = value;
+                    municipios = [];
+                  });
+                  if (value != null) {
+                    actualizarMunicipios(value);
+                  }
+                },
+              ),
+              const SizedBox(height: 20),
+
+              // Selector de Municipio
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: 'Municipio',
+                  border: OutlineInputBorder(),
+                ),
+                menuMaxHeight: 500,
+                initialValue: municipioSeleccionado,
+                items: municipios.map((String mun) {
+                  return DropdownMenuItem<String>(value: mun, child: Text(mun));
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    municipioSeleccionado = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 20),
+
+              // Botón de GPS
+              Center(
+                child: obteniendoUbicacion
+                    ? const CircularProgressIndicator()
+                    : ElevatedButton.icon(
+                        icon: const Icon(Icons.gps_fixed),
+                        label: const Text('Usar ubicación actual'),
+                        onPressed: _usarUbicacionActual,
+                      ),
+              ),
+              const SizedBox(height: 30),
+
+              // Botón principal
+              ElevatedButton(
+                onPressed: () async {
+                  // ← vuelve el callback async
+                  if (!validarCampos()) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Por favor completa todos los campos antes de continuar',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+                  final navigator = Navigator.of(context);
+                  await saveProfile(); // ← espera a que termine la escritura
+                  if (!mounted) {
+                    return; // seguridad por si el widget se destruye
+                  }
+                  navigator.pushReplacement(
+                    MaterialPageRoute(builder: (_) => const HomePage()),
+                  );
+                },
+                child: const Text(
+                  'Guardar perfil',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -223,7 +223,7 @@ class RecommendationDetailPage extends StatelessWidget {
                   ],
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),

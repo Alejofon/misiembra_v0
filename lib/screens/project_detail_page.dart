@@ -1,6 +1,8 @@
+// lib/pages/project_detail_page.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../prompts/project_detail_prompt.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ProjectDetailPage extends StatefulWidget {
@@ -12,6 +14,10 @@ class ProjectDetailPage extends StatefulWidget {
   final String departamento;
   final String municipio;
   final String? tipoTerreno;
+  final Map<String, dynamic>? datosAnalisis;
+  final Map<String, dynamic>? proveedoresInsumos;
+  final double? lat; // ← NUEVO
+  final double? lon;
 
   const ProjectDetailPage({
     super.key,
@@ -23,6 +29,10 @@ class ProjectDetailPage extends StatefulWidget {
     required this.departamento,
     required this.municipio,
     this.tipoTerreno,
+    this.datosAnalisis,
+    this.proveedoresInsumos,
+    this.lon,
+    this.lat,
   });
 
   @override
@@ -34,106 +44,73 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   String? error;
   Map<String, dynamic>? datosProyecto;
 
+  static const String apiKey =
+      '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';
+
   @override
   void initState() {
     super.initState();
     _generarPlanDetallado();
   }
 
+  // Prepara los textos con datos de clima/suelo (rendimiento) e insumos (precios)
+
+  String _formatearDatosAnalisis() {
+    final buf = StringBuffer();
+    if (widget.datosAnalisis == null) return '';
+    final data = widget.datosAnalisis!;
+
+    final clima = data['clima']?['data'];
+    if (clima != null) {
+      buf.writeln(
+        'CLIMA: Temp ${clima['current']?['temperature']}°C, Hum ${clima['current']?['humidity']}%, Precip ${clima['daily']?['precipitation_sum']}mm',
+      );
+    }
+
+    final suelo = data['suelo']?['data'];
+    if (suelo != null) {
+      buf.writeln(
+        'SUELO: pH ${suelo['ph']}, Arcilla ${suelo['clay']}%, Arena ${suelo['sand']}%',
+      );
+    }
+
+    final insumos = data['insumos']?['data'];
+    if (insumos != null) {
+      buf.writeln(
+        'ÍNDICE INSUMOS: Total ${insumos['indice_total']}, Fertilizantes ${insumos['total_fertilizantes']}, Plaguicidas ${insumos['total_plaguicidas']}',
+      );
+    }
+
+    final precios = data['precios_mercado']?['por_grupo'];
+    if (precios != null) {
+      buf.writeln('PRECIOS PROMEDIO (COP/kg):');
+      precios.forEach((grupo, datos) {
+        final stats = datos['estadisticas'];
+        if (stats != null && stats['total_productos'] > 0) {
+          buf.writeln(
+            '- $grupo: prom ${stats['precio_promedio_grupo']}, más caro ${stats['producto_mas_caro']} (${stats['precio_mas_caro']}), más barato ${stats['producto_mas_barato']} (${stats['precio_mas_barato']})',
+          );
+        }
+      });
+    }
+
+    return buf.toString();
+  }
+
   Future<void> _generarPlanDetallado() async {
     try {
-      const String apiKey =
-          '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'; // Reemplazar con tu key
+      final datosAnalisis = _formatearDatosAnalisis();
 
-      final prompt =
-          '''Eres un ingeniero agrónomo experto en Colombia especializado en planificación agrícola basada en datos reales.
-
-Tu tarea es generar un plan de cultivo REALISTA, VIABLE y COHERENTE con las condiciones dadas.
-
-DATOS DE ENTRADA:
-- CULTIVO: ${widget.cultivo}
-- UBICACIÓN: ${widget.departamento} - ${widget.municipio}
-- PRESUPUESTO: ${widget.presupuesto} COP
-- ÁREA: ${widget.area} ${widget.unidad}
-- TIPO DE TERRENO: ${widget.tipoTerreno ?? "No especificado"}
-
-REGLAS CRÍTICAS (OBLIGATORIAS):
-
-1. PROHIBIDO inventar datos específicos (proveedores, direcciones, precios exactos).
-2. Si no tienes certeza real, devuelve "NO_DISPONIBLE".
-3. TODOS los valores deben ser coherentes con:
-   - Presupuesto
-   - Área
-   - Cultivo
-   - Región de Colombia
-
-4. VALIDACIÓN DE VIABILIDAD:
-   - Si el cultivo NO es viable con el presupuesto o área:
-     - Debes indicarlo claramente en "rentabilidad.descripcion"
-     - Ajusta recomendaciones a algo REALISTA
-     - NO fuerces rentabilidad positiva
-
-5. NUNCA uses valores genéricos como:
-   - "texto"
-   - "ejemplo"
-   - "N/A"
-   - "aproximado" sin contexto
-
-6. SOLO usa rangos realistas en Colombia:
-   - Costos agrícolas aproximados
-   - Tiempos reales de cultivo
-   - Prácticas agrícolas comunes
-
-7. PROVEEDORES:
-   - SOLO incluir si estás seguro de su existencia
-   - Si no → devolver lista vacía []
-
-8. RESPUESTA:
-   - SOLO JSON válido
-   - SIN texto adicional
-   - SIN explicaciones fuera del JSON
-
-FORMATO DE SALIDA:
-
-{
-  "rentabilidad": {
-    "nivel": "Alta | Media | Baja | No viable",
-    "descripcion": "Explicación basada en presupuesto y área",
-    "retorno_inversion_meses": numero o null,
-    "ganancia_estimada_anual": numero o null
-  },
-  "dificultad": {
-    "nivel": "Alta | Media | Baja",
-    "descripcion": "Descripción técnica"
-  },
-  "tiempos": {
-    "siembra_mejor_epoca": "meses reales",
-    "cosecha_meses": numero,
-    "calendario_riego": "detalle real",
-    "calendario_fertilizacion": "detalle real"
-  },
-  "semillas": {
-    "proveedores": [],
-    "cantidad_necesaria": "dato real o estimado",
-    "recomendacion_variedad": "variedades reales en Colombia"
-  },
-  "plagas": [
-    {
-      "nombre": "plaga real",
-      "sintomas": "descripción real",
-      "control": "manejo real",
-      "epoca_riesgo": "meses"
-    }
-  ],
-  "mercado": {
-    "precio_actual_kg": numero o null,
-    "canales_venta": ["canales reales"],
-    "compradores": [],
-    "tendencias": "basado en contexto colombiano"
-  },
-  "beneficios": ["beneficios reales"],
-  "pasos_siembra": ["pasos técnicos reales"]
-}''';
+      final prompt = ProjectDetailPrompt.build(
+        cultivo: widget.cultivo,
+        departamento: widget.departamento,
+        municipio: widget.municipio,
+        presupuesto: widget.presupuesto,
+        area: widget.area,
+        unidad: widget.unidad,
+        tipoTerreno: widget.tipoTerreno,
+        datosAnalisis: datosAnalisis.isNotEmpty ? datosAnalisis : null,
+      );
 
       final response = await http.post(
         Uri.parse('https://api.openai.com/v1/chat/completions'),
@@ -154,8 +131,6 @@ FORMATO DE SALIDA:
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         String contenido = data['choices'][0]['message']['content'];
-
-        // Limpiar posibles markdown o texto adicional
         contenido = contenido.trim();
         if (contenido.startsWith('```json')) {
           contenido = contenido.replaceAll('```json', '').replaceAll('```', '');
@@ -165,20 +140,41 @@ FORMATO DE SALIDA:
         }
 
         final Map<String, dynamic> plan = jsonDecode(contenido);
-
         setState(() {
           datosProyecto = plan;
           cargando = false;
         });
       } else {
-        throw Exception('Error ${response.statusCode}: ${response.body}');
+        throw Exception('Error ${response.statusCode}');
       }
     } catch (e) {
       setState(() {
         cargando = false;
-        error = 'Error generando el plan: ${e.toString()}';
+        error = 'Error generando el plan: $e';
       });
     }
+  }
+
+  // Métodos auxiliares (sin cambios)
+  Map<String, dynamic> _safeMap(dynamic value) =>
+      value is Map<String, dynamic> ? value : {};
+  List<dynamic> _safeList(dynamic value) => value is List<dynamic> ? value : [];
+  String _safeString(dynamic value, [String defaultValue = 'No disponible']) {
+    if (value == null) return defaultValue;
+    if (value is String) return value.isEmpty ? defaultValue : value;
+    return value.toString();
+  }
+
+  Color _getColorRentabilidad(String nivel) {
+    if (nivel == "Alta") return Colors.green;
+    if (nivel == "Media") return Colors.orange;
+    return Colors.red;
+  }
+
+  Color _getColorDificultad(String nivel) {
+    if (nivel == "Baja") return Colors.green;
+    if (nivel == "Media") return Colors.orange;
+    return Colors.red;
   }
 
   @override
@@ -192,92 +188,123 @@ FORMATO DE SALIDA:
       body: cargando
           ? const Center(child: CircularProgressIndicator())
           : error != null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text(error!, textAlign: TextAlign.center),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        cargando = true;
-                        error = null;
-                        _generarPlanDetallado();
-                      });
-                    },
-                    child: const Text('Reintentar'),
-                  ),
-                ],
-              ),
-            )
-          : DefaultTabController(
-              length: 5,
-              child: Column(
-                children: [
-                  // Resumen rápido
-                  Container(
-                    color: Colors.green.shade50,
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _resumenChip(
-                          Icons.trending_up,
-                          "Rentabilidad",
-                          _safeString(_safeMap(datosProyecto!['rentabilidad'])['nivel'], 'N/A'),
-                          _getColorRentabilidad(
-                            _safeString(_safeMap(datosProyecto!['rentabilidad'])['nivel'], ''),
-                          ),
-                        ),
-                        _resumenChip(
-                          Icons.speed,
-                          "Dificultad",
-                          _safeString(_safeMap(datosProyecto!['dificultad'])['nivel'], 'N/A'),
-                          _getColorDificultad(
-                            _safeString(_safeMap(datosProyecto!['dificultad'])['nivel'], ''),
-                          ),
-                        ),
-                        _resumenChip(
-                          Icons.timeline,
-                          "Cosecha",
-                          _safeString(_safeMap(datosProyecto!['tiempos'])['cosecha_meses'], 'N/A'),
-                          Colors.blue,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const TabBar(
-                    isScrollable: true,
-                    tabs: [
-                      Tab(icon: Icon(Icons.attach_money), text: "Rentabilidad"),
-                      Tab(icon: Icon(Icons.calendar_month), text: "Tiempos"),
-                      Tab(icon: Icon(Icons.eco), text: "Semillas"),
-                      Tab(icon: Icon(Icons.bug_report), text: "Plagas"),
-                      Tab(icon: Icon(Icons.store), text: "Mercado"),
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error, size: 64, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text(error!, textAlign: TextAlign.center),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            cargando = true;
+                            error = null;
+                            _generarPlanDetallado();
+                          });
+                        },
+                        child: const Text('Reintentar'),
+                      ),
                     ],
                   ),
-
-                  Expanded(
-                    child: TabBarView(
-                      children: [
-                        _RentabilidadTab(
-                          data: _safeMap(datosProyecto!['rentabilidad']),
-                          beneficios: _safeList(datosProyecto!['beneficios']),
+                )
+              : DefaultTabController(
+                  length: 6,
+                  child: Column(
+                    children: [
+                      Container(
+                        color: Colors.green.shade50,
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _resumenChip(
+                              Icons.trending_up,
+                              "Rentabilidad",
+                              _safeString(
+                                _safeMap(
+                                    datosProyecto!['rentabilidad'])['nivel'],
+                                'N/A',
+                              ),
+                              _getColorRentabilidad(
+                                _safeString(
+                                  _safeMap(
+                                      datosProyecto!['rentabilidad'])['nivel'],
+                                  '',
+                                ),
+                              ),
+                            ),
+                            _resumenChip(
+                              Icons.speed,
+                              "Dificultad",
+                              _safeString(
+                                _safeMap(datosProyecto!['dificultad'])['nivel'],
+                                'N/A',
+                              ),
+                              _getColorDificultad(
+                                _safeString(
+                                  _safeMap(
+                                      datosProyecto!['dificultad'])['nivel'],
+                                  '',
+                                ),
+                              ),
+                            ),
+                            _resumenChip(
+                              Icons.timeline,
+                              "Cosecha",
+                              _safeString(
+                                _safeMap(
+                                  datosProyecto!['tiempos'],
+                                )['cosecha_meses'],
+                                'N/A',
+                              ),
+                              Colors.blue,
+                            ),
+                          ],
                         ),
-                        _TiemposTab(data: _safeMap(datosProyecto!['tiempos'])),
-                        _SemillasTab(data: _safeMap(datosProyecto!['semillas'])),
-                        _PlagasTab(data: _safeList(datosProyecto!['plagas'])),
-                        _MercadoTab(data: _safeMap(datosProyecto!['mercado'])),
-                      ],
-                    ),
+                      ),
+                      const TabBar(
+                        isScrollable: true,
+                        tabs: [
+                          Tab(
+                              icon: Icon(Icons.attach_money),
+                              text: "Rentabilidad"),
+                          Tab(
+                              icon: Icon(Icons.calendar_month),
+                              text: "Tiempos"),
+                          Tab(icon: Icon(Icons.bug_report), text: "Plagas"),
+                          Tab(icon: Icon(Icons.store), text: "Mercado"),
+                          Tab(
+                              icon: Icon(Icons.local_shipping),
+                              text: "Proveedores"),
+                        ],
+                      ),
+                      Expanded(
+                        child: TabBarView(
+                          children: [
+                            _RentabilidadTab(
+                              data: _safeMap(datosProyecto!['rentabilidad']),
+                              beneficios:
+                                  _safeList(datosProyecto!['beneficios']),
+                            ),
+                            _TiemposTab(
+                                data: _safeMap(datosProyecto!['tiempos'])),
+                            _PlagasTab(
+                                data: _safeList(datosProyecto!['plagas'])),
+                            _MercadoTab(
+                                data: _safeMap(datosProyecto!['mercado'])),
+                            _ProveedoresTab(
+                              proveedoresData: widget.proveedoresInsumos,
+                              lat: widget.lat, // <--- añade esto
+                              lon: widget.lon, // <--- añade esto
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
     );
   }
 
@@ -294,418 +321,17 @@ FORMATO DE SALIDA:
       ],
     );
   }
-
-  Color _getColorRentabilidad(String nivel) {
-    if (nivel == "Alta") return Colors.green;
-    if (nivel == "Media") return Colors.orange;
-    return Colors.red;
-  }
-
-  Color _getColorDificultad(String nivel) {
-    if (nivel == "Baja") return Colors.green;
-    if (nivel == "Media") return Colors.orange;
-    return Colors.red;
-  }
-
-  Map<String, dynamic> _safeMap(dynamic value) {
-    return value is Map<String, dynamic> ? value : {};
-  }
-
-  List<dynamic> _safeList(dynamic value) {
-    return value is List<dynamic> ? value : [];
-  }
-
-  String _safeString(dynamic value, [String defaultValue = 'No disponible']) {
-    if (value == null) return defaultValue;
-    if (value is String) return value.isEmpty ? defaultValue : value;
-    return value.toString();
-  }
 }
 
-// Pestaña de Rentabilidad
+
+
+// ====================== PESTAÑAS ======================
+
 class _RentabilidadTab extends StatelessWidget {
   final Map<String, dynamic> data;
   final List<dynamic> beneficios;
 
   const _RentabilidadTab({required this.data, required this.beneficios});
-
-  static String _safeString(dynamic value, [String defaultValue = 'No disponible']) {
-    if (value == null) return defaultValue;
-    if (value is String) return value.isEmpty ? defaultValue : value;
-    return value.toString();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          Card(
-            child: ListTile(
-              leading: Icon(Icons.trending_up, color: _getColor()),
-              title: const Text(
-                "Nivel de rentabilidad",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Text(_safeString(data['nivel'])),
-            ),
-          ),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.description, color: Colors.blue),
-              title: const Text(
-                "Análisis",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Text(_safeString(data['descripcion'])),
-            ),
-          ),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.timer, color: Colors.orange),
-              title: const Text(
-                "Retorno de inversión",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Text("${_safeString(data['retorno_inversion_meses'], 'N/A')} meses"),
-            ),
-          ),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.monetization_on, color: Colors.green),
-              title: const Text(
-                "Ganancia estimada anual",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Text(_safeString(data['ganancia_estimada_anual'])),
-            ),
-          ),
-          Card(
-            color: Colors.green.shade50,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "✨ Beneficios del cultivo",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  ...beneficios.map(
-                    (b) => Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.check,
-                            size: 16,
-                            color: Colors.green,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text(_safeString(b, 'Beneficio no especificado'))),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Color _getColor() {
-    final nivel = _safeString(data['nivel'], '');
-    if (nivel == "Alta") return Colors.green;
-    if (nivel == "Media") return Colors.orange;
-    return Colors.red;
-  }
-}
-
-// Pestaña de Tiempos
-class _TiemposTab extends StatelessWidget {
-  final Map<String, dynamic> data;
-  const _TiemposTab({required this.data});
-
-  static String _safeString(dynamic value, [String defaultValue = 'No disponible']) {
-    if (value == null) return defaultValue;
-    if (value is String) return value.isEmpty ? defaultValue : value;
-    return value.toString();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.event),
-            title: const Text("Mejor época"),
-            subtitle: Text(_safeString(data['siembra_mejor_epoca'])),
-          ),
-        ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.calendar_today),
-            title: const Text("Tiempo a cosecha"),
-            subtitle: Text("${_safeString(data['cosecha_meses'], 'N/A')} meses"),
-          ),
-        ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.water_drop),
-            title: const Text("Calendario de riego"),
-            subtitle: Text(_safeString(data['calendario_riego'])),
-          ),
-        ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.eco),
-            title: const Text("Calendario de fertilización"),
-            subtitle: Text(_safeString(data['calendario_fertilizacion'])),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// Pestaña de Semillas (con llamada telefónica)
-class _SemillasTab extends StatelessWidget {
-  final Map<String, dynamic> data;
-  const _SemillasTab({required this.data});
-
-  static String _safeString(dynamic value, [String defaultValue = 'No disponible']) {
-    if (value == null) return defaultValue;
-    if (value is String) return value.isEmpty ? defaultValue : value;
-    return value.toString();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Card(
-          child: ListTile(
-            leading: const Icon(
-              Icons.production_quantity_limits,
-              color: Colors.green,
-            ),
-            title: const Text(
-              "Cantidad necesaria",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(_safeString(data['cantidad_necesaria'])),
-          ),
-        ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.recommend, color: Colors.orange),
-            title: const Text(
-              "Variedad recomendada",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(_safeString(data['recomendacion_variedad'])),
-          ),
-        ),
-        const Card(
-          color: Colors.blue,
-          child: ListTile(
-            leading: Icon(Icons.store, color: Colors.white),
-            title: Text(
-              "Proveedores de semillas",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ),
-        if (data['proveedores'] != null && (data['proveedores'] as List).isNotEmpty)
-          ...(data['proveedores'] as List).map(
-            (proveedor) => Card(
-              margin: const EdgeInsets.symmetric(vertical: 6),
-              child: ExpansionTile(
-                leading: const Icon(Icons.business, color: Colors.green),
-                title: Text(
-                _safeString(proveedor['nombre'], 'Proveedor desconocido'),
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Text(_safeString(proveedor['ciudad'], 'Ciudad no especificada')),
-              trailing: IconButton(
-                icon: const Icon(Icons.phone, color: Colors.blue),
-                onPressed: () =>
-                    launchUrl(Uri.parse('tel:${proveedor['telefono'] ?? ''}')),
-              ),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 📞 Teléfono (texto visible)
-                      Row(
-                        children: [
-                          const Icon(Icons.phone, size: 18, color: Colors.blue),
-                          const SizedBox(width: 8),
-                          Text(
-                            _safeString(proveedor['telefono'], 'No disponible'),
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                          const SizedBox(width: 16),
-                          if (proveedor['telefono_alternativo'] != null)
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.phone_android,
-                                  size: 18,
-                                  color: Colors.green,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _safeString(proveedor['telefono_alternativo']),
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                              ],
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-
-                      // 📍 Dirección
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(
-                            Icons.location_on,
-                            size: 18,
-                            color: Colors.red,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _safeString(proveedor['direccion'], 'Dirección no especificada'),
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      // 🏢 Sucursales (si existen)
-                      if (proveedor['sucursales'] != null &&
-                          (proveedor['sucursales'] as List).isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        const Divider(),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.business_center,
-                              size: 18,
-                              color: Colors.orange,
-                            ),
-                            const SizedBox(width: 8),
-                            const Text(
-                              "Otras sucursales:",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        ...(proveedor['sucursales'] as List).map(
-                          (sucursal) => Padding(
-                            padding: const EdgeInsets.only(left: 26, bottom: 6),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text("• ${_safeString(sucursal['ciudad'], 'Ciudad no especificada')}"),
-                                if (sucursal['direccion'] != null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 12),
-                                    child: Text(
-                                      "  ${_safeString(sucursal['direccion'])}",
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ),
-                                if (sucursal['telefono'] != null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 12),
-                                    child: Text(
-                                      "  📞 ${_safeString(sucursal['telefono'])}",
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.blue,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-
-                      // 🌐 Web (si existe)
-                      if (proveedor['web'] != null &&
-                          proveedor['web'].isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        InkWell(
-                          onTap: () => launchUrl(Uri.parse(proveedor['web'])),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.language,
-                                size: 18,
-                                color: Colors.purple,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  proveedor['web'],
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.blue,
-                                    decoration: TextDecoration.underline,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// Pestaña de Plagas
-class _PlagasTab extends StatelessWidget {
-  final List<dynamic> data;
-  const _PlagasTab({required this.data});
-
-  static String _safeString(dynamic value, [String defaultValue = 'No disponible']) {
-    if (value == null) return defaultValue;
-    if (value is String) return value.isEmpty ? defaultValue : value;
-    return value.toString();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -713,34 +339,48 @@ class _PlagasTab extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         const Text(
-          "Manejo integrado de plagas",
+          'Rentabilidad',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        ...data.entries.map(
+          (entry) => ListTile(
+            title: Text(entry.key),
+            subtitle: Text(entry.value.toString()),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'Beneficios',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 12),
-        ...data.map(
-          (plaga) => Card(
-            child: ExpansionTile(
-              leading: const Icon(Icons.bug_report, color: Colors.red),
-              title: Text(
-                _safeString(plaga['nombre'], 'Plaga desconocida'),
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("⚠️ Síntomas: ${_safeString(plaga['sintomas'])}"),
-                      const SizedBox(height: 8),
-                      Text("✅ Control: ${_safeString(plaga['control'])}"),
-                      const SizedBox(height: 8),
-                      Text("📅 Época de riesgo: ${_safeString(plaga['epoca_riesgo'])}"),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+        ...beneficios.map(
+          (beneficio) => ListTile(title: Text(beneficio.toString())),
+        ),
+      ],
+    );
+  }
+}
+
+class _TiemposTab extends StatelessWidget {
+  final Map<String, dynamic> data;
+
+  const _TiemposTab({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const Text(
+          'Tiempos',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        ...data.entries.map(
+          (entry) => ListTile(
+            title: Text(entry.key),
+            subtitle: Text(entry.value.toString()),
           ),
         ),
       ],
@@ -748,59 +388,131 @@ class _PlagasTab extends StatelessWidget {
   }
 }
 
-// Pestaña de Mercado
-class _MercadoTab extends StatelessWidget {
-  final Map<String, dynamic> data;
-  const _MercadoTab({required this.data});
+class _ProveedoresTab extends StatelessWidget {
+  final Map<String, dynamic>? proveedoresData;
+  final double? lat;
+  final double? lon;
 
-  static String _safeString(dynamic value, [String defaultValue = 'No disponible']) {
-    if (value == null) return defaultValue;
-    if (value is String) return value.isEmpty ? defaultValue : value;
-    return value.toString();
-  }
+  const _ProveedoresTab({
+    required this.proveedoresData,
+    this.lat,
+    this.lon,
+  });
 
-  static List<dynamic> _safeList(dynamic value) {
-    return value is List<dynamic> ? value : [];
+  @override
+  Widget build(BuildContext context) {
+    final bool hayCoordenadas = lat != null && lon != null;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Botón principal para abrir Google Maps con búsqueda
+        if (hayCoordenadas) ...[
+          ElevatedButton.icon(
+            icon: const Icon(Icons.map),
+            label: const Text('Buscar insumos en Google Maps'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            onPressed: () {
+              final uri = Uri.parse(
+                'https://www.google.com/maps/search/insumos+agropecuarios/@$lat,$lon,14z',
+              );
+              launchUrl(uri, mode: LaunchMode.externalApplication);
+            },
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Proveedores cercanos encontrados:',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+        ],
+
+        // Lista de proveedores (si hay)
+        if (proveedoresData == null || proveedoresData!['data'] == null)
+          const ListTile(
+            leading: Icon(Icons.info_outline),
+            title: Text("Información de proveedores no disponible."),
+          )
+        else if ((proveedoresData!['data'] as List).isEmpty)
+          const ListTile(
+            leading: Icon(Icons.info_outline),
+            title: Text("No se encontraron tiendas cercanas."),
+            subtitle:
+                Text("Usa el botón de arriba para buscar en Google Maps."),
+          )
+        else
+          ...(proveedoresData!['data'] as List).map((prov) {
+            final nombre = prov['nombre'] ?? 'Tienda sin nombre';
+            final direccion = prov['direccion'] ?? '';
+            final mapsLink = prov['maps_link'] ?? '';
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ListTile(
+                leading: const Icon(Icons.store, color: Colors.green),
+                title: Text(nombre,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: direccion.isNotEmpty ? Text(direccion) : null,
+                trailing: mapsLink.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.directions, color: Colors.blue),
+                        onPressed: () {
+                          launchUrl(Uri.parse(mapsLink),
+                              mode: LaunchMode.externalApplication);
+                        },
+                      )
+                    : null,
+              ),
+            );
+          }).toList(),
+      ],
+    );
   }
+}
+
+
+class _PlagasTab extends StatelessWidget {
+  final List<dynamic> data;
+
+  const _PlagasTab({required this.data});
 
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Card(
-          color: Colors.green.shade50,
-          child: ListTile(
-            leading: const Icon(Icons.trending_up, color: Colors.green),
-            title: const Text(
-              "Precio actual",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(_safeString(data['precio_actual_kg'])),
-          ),
+        const Text(
+          'Plagas',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.storefront),
-            title: const Text("Canales de venta"),
-            subtitle: Text(_safeList(data['canales_venta']).join(" • ")),
-          ),
+        const SizedBox(height: 16),
+        ...data.map((plaga) => ListTile(title: Text(plaga.toString()))),
+      ],
+    );
+  }
+}
+
+class _MercadoTab extends StatelessWidget {
+  final Map<String, dynamic> data;
+
+  const _MercadoTab({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const Text(
+          'Mercado',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.factory),
-            title: const Text("Compradores potenciales"),
-            subtitle: Text(_safeList(data['compradores']).join(" • ")),
-          ),
-        ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.insights),
-            title: const Text(
-              "Tendencias de mercado",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(_safeString(data['tendencias'])),
+        const SizedBox(height: 16),
+        ...data.entries.map(
+          (entry) => ListTile(
+            title: Text(entry.key),
+            subtitle: Text(entry.value.toString()),
           ),
         ),
       ],

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'history_page.dart';
-import 'optionspage.dart';
+import 'options_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -14,11 +14,13 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final TextEditingController presupuestoController = TextEditingController();
   final TextEditingController extensionController = TextEditingController();
-  
+
   bool tieneRecomendaciones = false;
   String? departamento;
   String? municipio;
-  
+  double? lat;
+  double? lon;
+
   final List<String> unidadesMedida = [
     'Metros cuadrados',
     'Hectáreas',
@@ -26,9 +28,9 @@ class _HomePageState extends State<HomePage> {
     'Acres',
     'Kilómetros cuadrados',
   ];
-  
+
   String? unidadSeleccionada;
-  
+
   final List<String> tiposTerreno = [
     'Plano',
     'Montañoso',
@@ -37,7 +39,7 @@ class _HomePageState extends State<HomePage> {
     'Arcilloso',
     'Mixto',
   ];
-  
+
   String? tipoTerrenoSeleccionado;
 
   @override
@@ -51,6 +53,8 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       departamento = prefs.getString('departamento');
       municipio = prefs.getString('municipio');
+      lat = prefs.getDouble('lat');
+      lon = prefs.getDouble('lon');
     });
   }
 
@@ -87,7 +91,7 @@ class _HomePageState extends State<HomePage> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
-              
+
               // Mostrar datos del perfil cargados
               Card(
                 color: Colors.green.shade50,
@@ -106,14 +110,16 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 20),
-              
+
               ElevatedButton(
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const HistoryPage()),
+                    MaterialPageRoute(
+                      builder: (context) => const HistoryPage(),
+                    ),
                   );
                 },
                 style: ElevatedButton.styleFrom(
@@ -152,7 +158,7 @@ class _HomePageState extends State<HomePage> {
                   labelText: 'Unidad de medida',
                   border: OutlineInputBorder(),
                 ),
-                value: unidadSeleccionada,
+                initialValue: unidadSeleccionada,
                 items: unidadesMedida.map((String unidad) {
                   return DropdownMenuItem<String>(
                     value: unidad,
@@ -171,7 +177,7 @@ class _HomePageState extends State<HomePage> {
                   labelText: 'Tipo de terreno (opcional)',
                   border: OutlineInputBorder(),
                 ),
-                value: tipoTerrenoSeleccionado,
+                initialValue: tipoTerrenoSeleccionado,
                 items: tiposTerreno.map((String tipo) {
                   return DropdownMenuItem<String>(
                     value: tipo,
@@ -197,7 +203,7 @@ class _HomePageState extends State<HomePage> {
                     );
                     return;
                   }
-                  
+
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -208,6 +214,8 @@ class _HomePageState extends State<HomePage> {
                         tipoTerreno: tipoTerrenoSeleccionado,
                         departamento: departamento!,
                         municipio: municipio!,
+                        lat: lat,
+                        lon: lon,
                       ),
                     ),
                   );
