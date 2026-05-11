@@ -45,7 +45,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   Map<String, dynamic>? datosProyecto;
 
   static const String apiKey =
-      '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';
+      '';
 
   @override
   void initState() {
