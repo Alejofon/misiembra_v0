@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../prompts/project_detail_prompt.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../config/api_config.dart'; 
 
 class ProjectDetailPage extends StatefulWidget {
   final String cultivo;
@@ -44,9 +45,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   String? error;
   Map<String, dynamic>? datosProyecto;
 
-  static const String apiKey =
-      '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';
-
+  static const String apiKey = ApiConfig.openAiApiKey;
   @override
   void initState() {
     super.initState();

@@ -70,7 +70,7 @@ DATOS DEL AGRICULTOR:
     "nivel": "Alta | Media | Baja | No viable",
     "descripcion": "Explicación clara de la viabilidad según el presupuesto, área real cultivada y precios. Si el proyecto es pequeño pero factible, indícalo.",
     "retorno_inversion_meses": número o null,
-    "ganancia_estimada_anual": "texto descriptivo o cifra en COP"
+    "ganancia_estimada_por_cosecha": "texto descriptivo o cifra en COP"
   },
   "dificultad": {
     "nivel": "Alta | Media | Baja",

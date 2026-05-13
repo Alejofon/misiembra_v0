@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'project_detail_page.dart';
 import '../prompts/options_prompt.dart';
 import '../services/api_misiembra_service.dart';
+import '../config/api_config.dart';
 
 class OptionsPage extends StatefulWidget {
   final String presupuesto;
@@ -41,8 +42,7 @@ class _OptionsPageState extends State<OptionsPage> {
   String? error;
   Map<String, dynamic>? datosAnalisis; // Guarda la respuesta completa de la API
 
-  static const String apiKey =
-      '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';
+  static const String apiKey = ApiConfig.openAiApiKey;
 
   @override
   void initState() {
