@@ -165,7 +165,7 @@ class _OptionsPageState extends State<OptionsPage> {
           'Authorization': 'Bearer $apiKey',
         },
         body: jsonEncode({
-          "model": "gpt-3.5-turbo",
+          "model": "gpt-4.1-mini",
           "messages": [
             {"role": "user", "content": prompt},
           ],

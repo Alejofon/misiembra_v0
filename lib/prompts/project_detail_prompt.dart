@@ -67,10 +67,25 @@ DATOS DEL AGRICULTOR:
 
 {
   "rentabilidad": {
-    "nivel": "Alta | Media | Baja | No viable",
-    "descripcion": "Explicación clara de la viabilidad según el presupuesto, área real cultivada y precios. Si el proyecto es pequeño pero factible, indícalo.",
-    "retorno_inversion_meses": número o null,
-    "ganancia_estimada_por_cosecha": "texto descriptivo o cifra en COP"
+  "nivel": "Alta | Media | Baja | No viable",
+  "descripcion": "Explicación clara de la viabilidad según el presupuesto, área real cultivada y precios. Si el proyecto es pequeño pero factible, indícalo.",
+  "retorno_inversion_meses": número o null,
+  "ganancia_estimada_por_cosecha": "texto descriptivo o cifra en COP",
+
+  "area_realmente_cultivable": "texto",
+  "numero_plantas_estimadas": número,
+  "distancia_siembra": "texto",
+  "produccion_estimada": "texto",
+  "area_minima_rentable": "texto",
+  "presupuesto_minimo_recomendado": "texto"
+  },
+  "siembra_estimada": {
+  "area_recomendada_siembra": "texto",
+  "numero_plantas_estimadas": número,
+  "distancia_siembra": "texto",
+  "produccion_estimada": "texto",
+  "area_minima_rentable": "texto",
+  "presupuesto_minimo_recomendado": "texto"
   },
   "dificultad": {
     "nivel": "Alta | Media | Baja",

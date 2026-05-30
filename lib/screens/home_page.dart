@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'history_page.dart';
 import 'options_page.dart';
 
@@ -12,12 +13,15 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final TextEditingController presupuestoController = TextEditingController();
-  final TextEditingController extensionController = TextEditingController();
+  final TextEditingController presupuestoController =
+      TextEditingController();
 
-  bool tieneRecomendaciones = false;
+  final TextEditingController extensionController =
+      TextEditingController();
+
   String? departamento;
   String? municipio;
+
   double? lat;
   double? lon;
 
@@ -49,20 +53,43 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _cargarPerfil() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs =
+        await SharedPreferences.getInstance();
+
     setState(() {
-      departamento = prefs.getString('departamento');
-      municipio = prefs.getString('municipio');
+      departamento =
+          prefs.getString('departamento');
+
+      municipio =
+          prefs.getString('municipio');
+
       lat = prefs.getDouble('lat');
+
       lon = prefs.getDouble('lon');
     });
   }
 
   bool validarCampos() {
-    if (presupuestoController.text.trim().isEmpty) return false;
-    if (extensionController.text.trim().isEmpty) return false;
-    if (unidadSeleccionada == null) return false;
-    if (departamento == null || municipio == null) return false;
+    if (presupuestoController.text
+        .trim()
+        .isEmpty) {
+      return false;
+    }
+
+    if (extensionController.text
+        .trim()
+        .isEmpty) {
+      return false;
+    }
+
+    if (unidadSeleccionada == null) {
+      return false;
+    }
+
+    if (lat == null || lon == null) {
+      return false;
+    }
+
     return true;
   }
 
@@ -70,161 +97,286 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MiSiembra - Consulta'),
+        title:
+            const Text('MiSiembra - Consulta'),
         centerTitle: true,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: SingleChildScrollView(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment:
+                CrossAxisAlignment.stretch,
             children: [
+              const SizedBox(height: 10),
+
               const Text(
-                'Datos para la recomendación agrícola',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                'Planificación agrícola inteligente',
                 textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              const SizedBox(height: 20),
-              const Text(
-                'Ingresa la información básica para generar una recomendación '
-                'adaptada a tu capacidad y tipo de terreno.',
-                textAlign: TextAlign.center,
-              ),
+
               const SizedBox(height: 20),
 
-              // Mostrar datos del perfil cargados
+              const Text(
+                'MiSiembra analiza condiciones geográficas y variables del terreno para generar recomendaciones agrícolas contextualizadas y apoyar la toma de decisiones productivas.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 15,
+                  height: 1.5,
+                ),
+              ),
+
+              const SizedBox(height: 25),
+
               Card(
+                elevation: 2,
                 color: Colors.green.shade50,
+                shape:
+                    RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(16),
+                ),
                 child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Column(
+                  padding:
+                      const EdgeInsets.all(16),
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.person, color: Colors.green),
-                          const SizedBox(width: 8),
-                          Text('Perfil cargado: $departamento - $municipio'),
-                        ],
+                      const Icon(
+                        Icons.location_on,
+                        color: Colors.green,
+                        size: 35,
+                      ),
+
+                      const SizedBox(width: 12),
+
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment
+                                  .start,
+                          children: [
+                            const Text(
+                              'Ubicación detectada',
+                              style: TextStyle(
+                                fontWeight:
+                                    FontWeight
+                                        .bold,
+                              ),
+                            ),
+
+                            const SizedBox(
+                                height: 4),
+
+                            Text(
+                              '$departamento - $municipio',
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 25),
 
               ElevatedButton(
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const HistoryPage(),
+                      builder:
+                          (context) =>
+                              const HistoryPage(),
                     ),
                   );
                 },
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
+                style:
+                    ElevatedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(
+                    vertical: 18,
+                  ),
                 ),
                 child: const Text(
                   'Ver recomendaciones anteriores',
-                  style: TextStyle(fontSize: 18),
+                  style: TextStyle(
+                    fontSize: 16,
+                  ),
                 ),
               ),
+
               const SizedBox(height: 30),
+
               TextField(
-                controller: presupuestoController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(
-                  labelText: 'Presupuesto disponible (COP)',
-                  hintText: 'Ejemplo: 1500000',
-                  border: OutlineInputBorder(),
+                controller:
+                    presupuestoController,
+                keyboardType:
+                    TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter
+                      .digitsOnly,
+                ],
+                decoration:
+                    const InputDecoration(
+                  labelText:
+                      'Presupuesto disponible (COP)',
+                  hintText:
+                      'Ejemplo: 1500000',
+                  border:
+                      OutlineInputBorder(),
                 ),
               ),
+
               const SizedBox(height: 20),
+
               TextField(
-                controller: extensionController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(
-                  labelText: 'Extensión aproximada del terreno',
+                controller:
+                    extensionController,
+                keyboardType:
+                    TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter
+                      .digitsOnly,
+                ],
+                decoration:
+                    const InputDecoration(
+                  labelText:
+                      'Extensión aproximada del terreno',
                   hintText: 'Ejemplo: 2',
-                  border: OutlineInputBorder(),
+                  border:
+                      OutlineInputBorder(),
                 ),
               ),
+
               const SizedBox(height: 20),
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                  labelText: 'Unidad de medida',
-                  border: OutlineInputBorder(),
+
+              DropdownButtonFormField<
+                  String>(
+                decoration:
+                    const InputDecoration(
+                  labelText:
+                      'Unidad de medida',
+                  border:
+                      OutlineInputBorder(),
                 ),
-                initialValue: unidadSeleccionada,
-                items: unidadesMedida.map((String unidad) {
-                  return DropdownMenuItem<String>(
+                initialValue:
+                    unidadSeleccionada,
+                items: unidadesMedida
+                    .map((String unidad) {
+                  return DropdownMenuItem<
+                      String>(
                     value: unidad,
                     child: Text(unidad),
                   );
                 }).toList(),
                 onChanged: (value) {
                   setState(() {
-                    unidadSeleccionada = value;
+                    unidadSeleccionada =
+                        value;
                   });
                 },
               ),
+
               const SizedBox(height: 20),
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                  labelText: 'Tipo de terreno (opcional)',
-                  border: OutlineInputBorder(),
+
+              DropdownButtonFormField<
+                  String>(
+                decoration:
+                    const InputDecoration(
+                  labelText:
+                      'Tipo de terreno (opcional)',
+                  border:
+                      OutlineInputBorder(),
                 ),
-                initialValue: tipoTerrenoSeleccionado,
-                items: tiposTerreno.map((String tipo) {
-                  return DropdownMenuItem<String>(
+                initialValue:
+                    tipoTerrenoSeleccionado,
+                items: tiposTerreno
+                    .map((String tipo) {
+                  return DropdownMenuItem<
+                      String>(
                     value: tipo,
                     child: Text(tipo),
                   );
                 }).toList(),
                 onChanged: (value) {
                   setState(() {
-                    tipoTerrenoSeleccionado = value;
+                    tipoTerrenoSeleccionado =
+                        value;
                   });
                 },
               ),
-              const SizedBox(height: 30),
+
+              const SizedBox(height: 35),
+
               ElevatedButton(
                 onPressed: () {
                   if (!validarCampos()) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    ScaffoldMessenger.of(
+                            context)
+                        .showSnackBar(
                       const SnackBar(
                         content: Text(
-                          'Por favor completa presupuesto, extensión, unidad de medida y asegúrate de tener perfil cargado',
+                          'Completa todos los campos requeridos',
                         ),
                       ),
                     );
+
                     return;
                   }
 
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => OptionsPage(
-                        presupuesto: presupuestoController.text,
-                        area: extensionController.text,
-                        unidad: unidadSeleccionada!,
-                        tipoTerreno: tipoTerrenoSeleccionado,
-                        departamento: departamento!,
-                        municipio: municipio!,
+                      builder: (context) =>
+                          OptionsPage(
+                        presupuesto:
+                            presupuestoController
+                                .text,
+
+                        area:
+                            extensionController
+                                .text,
+
+                        unidad:
+                            unidadSeleccionada!,
+
+                        tipoTerreno:
+                            tipoTerrenoSeleccionado,
+
+                        departamento:
+                            departamento ??
+                                '',
+
+                        municipio:
+                            municipio ?? '',
+
                         lat: lat,
                         lon: lon,
                       ),
                     ),
                   );
                 },
+                style:
+                    ElevatedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(
+                    vertical: 18,
+                  ),
+                ),
                 child: const Text(
-                  'Generar recomendaciones',
-                  style: TextStyle(fontSize: 16),
+                  'Consultar recomendaciones',
+                  style: TextStyle(
+                    fontSize: 16,
+                  ),
                 ),
               ),
+
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -236,6 +388,7 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     presupuestoController.dispose();
     extensionController.dispose();
+
     super.dispose();
   }
 }
