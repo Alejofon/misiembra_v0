@@ -1,36 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:geocoding/geocoding.dart';
 
 class GeocodingService {
-  /// Obtiene departamento y municipio desde coordenadas usando geocoding package.
+  /// Obtiene departamento y municipio desde coordenadas usando Nominatim.
   /// Retorna un mapa {"departamento": "...", "municipio": "..."} o null.
   static Future<Map<String, String>?> reverseGeocode(double lat, double lon) async {
-    try {
-      List<Placemark> placemarks = await placemarkFromCoordinates(lat, lon);
-      if (placemarks.isNotEmpty) {
-        Placemark place = placemarks.first;
-        String? departamento = place.administrativeArea; // state
-        String? municipio = place.locality ?? place.subAdministrativeArea ?? place.subLocality;
-
-        // Normalizar nombres para que coincidan con el JSON
-        String normalizedDepartamento = _normalizeDepartmentName(departamento ?? '');
-        String normalizedMunicipio = _normalizeMunicipalityName(municipio ?? '');
-
-        return {
-          'departamento': normalizedDepartamento,
-          'municipio': normalizedMunicipio,
-        };
-      }
-    } catch (e) {
-      // Si falla, intentar con Nominatim como fallback
-      return await _reverseGeocodeNominatim(lat, lon);
-    }
-    return null;
-  }
-
-  /// Fallback usando Nominatim
-  static Future<Map<String, String>?> _reverseGeocodeNominatim(double lat, double lon) async {
     final url = Uri.parse(
       'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lon&addressdetails=1&accept-language=es'
     );
