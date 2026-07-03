@@ -1,36 +1,57 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 
 class GeocodingService {
   /// Obtiene departamento y municipio desde coordenadas usando Nominatim.
   /// Retorna un mapa {"departamento": "...", "municipio": "..."} o null.
-  static Future<Map<String, String>?> reverseGeocode(double lat, double lon) async {
-    final url = Uri.parse(
-      'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lon&addressdetails=1&accept-language=es'
-    );
-    final response = await http.get(url, headers: {
-      'User-Agent': 'MiSiembraApp/1.0 (alejofon04@gmail.com)' // Reemplazar
-    });
+  static Future<Map<String, String>?> reverseGeocode(
+    double lat,
+    double lon, {
+    http.Client? client,
+  }) async {
+    final httpClient = client ?? http.Client();
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      final address = data['address'] as Map<String, dynamic>?;
-      if (address != null) {
-        // En Colombia, la división administrativa es: state = departamento, city/municipality = municipio
-        String? departamento = address['state'];
-        String? municipio = address['city'] ?? address['town'] ?? address['municipality'];
+    try {
+      final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lon&addressdetails=1&accept-language=es',
+      );
+      final response = await httpClient.get(url, headers: {
+        'User-Agent': 'MiSiembraApp/1.0 (alejofon04@gmail.com)',
+      });
 
-        // Normalizar nombres para que coincidan con el JSON
-        String normalizedDepartamento = _normalizeDepartmentName(departamento ?? '');
-        String normalizedMunicipio = _normalizeMunicipalityName(municipio ?? '');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final address = data['address'] as Map<String, dynamic>?;
+        if (address != null) {
+          String? departamento = address['state'];
+          String? municipio = address['city'] ?? address['town'] ?? address['municipality'];
 
-        return {
-          'departamento': normalizedDepartamento,
-          'municipio': normalizedMunicipio,
-        };
+          String normalizedDepartamento = _normalizeDepartmentName(departamento ?? '');
+          String normalizedMunicipio = _normalizeMunicipalityName(municipio ?? '');
+
+          return {
+            'departamento': normalizedDepartamento,
+            'municipio': normalizedMunicipio,
+          };
+        }
+      }
+      return null;
+    } on SocketException catch (_) {
+      return null;
+    } on HttpException catch (_) {
+      return null;
+    } on FormatException catch (_) {
+      return null;
+    } on http.ClientException catch (_) {
+      return null;
+    } catch (_) {
+      return null;
+    } finally {
+      if (client == null) {
+        httpClient.close();
       }
     }
-    return null;
   }
 
   /// Normaliza el nombre del departamento para que coincida con el JSON

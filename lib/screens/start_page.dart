@@ -35,6 +35,11 @@ class _StartPageState extends State<StartPage> {
         lat = position.latitude;
         lon = position.longitude;
 
+        setState(() {
+          departamentoSeleccionado = 'No disponible';
+          municipioSeleccionado = 'No disponible';
+        });
+
         final geocoded = await GeocodingService.reverseGeocode(
           lat!,
           lon!,
@@ -57,6 +62,13 @@ class _StartPageState extends State<StartPage> {
               ),
             );
           }
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Ubicación obtenida, pero no se pudo determinar la región'),
+              backgroundColor: Colors.orange,
+            ),
+          );
         }
       } else {
         if (mounted) {

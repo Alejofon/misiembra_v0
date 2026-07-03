@@ -92,6 +92,7 @@ class _OptionsPageState extends State<OptionsPage> {
     }
   }
 
+
   Map<String, dynamic>? proveedoresInsumos;
 
   // Convierte la respuesta de la API en un texto plano que el prompt entienda

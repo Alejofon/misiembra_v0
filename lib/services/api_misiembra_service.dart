@@ -124,6 +124,20 @@ class ApiMiSiembraService {
       final response = await http.get(uri);
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
+        
+        // 📋 LOG TEMPORAL: Imprimir JSON formateado recibido desde /analisis-terreno
+        /*if (kDebugMode) {
+          debugPrint('═══════════════════════════════════════════════════════');
+          debugPrint('📡 RESPUESTA RECIBIDA: /analisis-terreno');
+          debugPrint('═══════════════════════════════════════════════════════');
+          
+          // Formatear con indentación y imprimir línea por línea para evitar truncado
+          final prettyJson = const JsonEncoder.withIndent('  ').convert(data);
+          prettyJson.split('\n').forEach((line) => debugPrint(line));
+          
+          debugPrint('═══════════════════════════════════════════════════════');
+        }*/
+        
         if (data['success'] == true) {
           return data;
         } else {
@@ -153,6 +167,16 @@ class ApiMiSiembraService {
       final response = await http.get(uri);
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
+
+        /*if (kDebugMode) {
+          debugPrint('═══════════════════════════════════════════════════════');
+          debugPrint('📡 RESPUESTA RECIBIDA: /buscar-insumos (proveedores)');
+          debugPrint('═══════════════════════════════════════════════════════');
+          final prettyJson = const JsonEncoder.withIndent('  ').convert(data);
+          prettyJson.split('\n').forEach((line) => debugPrint(line));
+          debugPrint('═══════════════════════════════════════════════════════');
+        }*/
+
         return data;
       } else {
         debugPrint('Error buscando insumos: ${response.statusCode}');
