@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'project_detail_page.dart';
+import '../utils/snackbar_utils.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -23,7 +24,7 @@ class _HistoryPageState extends State<HistoryPage> {
   Future<void> _cargarHistorial() async {
     final prefs = await SharedPreferences.getInstance();
     final List<String>? historialRaw = prefs.getStringList('historial');
-    
+
     if (historialRaw != null) {
       setState(() {
         historial = historialRaw
@@ -45,7 +46,8 @@ class _HistoryPageState extends State<HistoryPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('¿Borrar historial?'),
-        content: const Text('Esta acción eliminará de forma permanente todas las recomendaciones guardadas localmente.'),
+        content: const Text(
+            'Esta acción eliminará de forma permanente todas las recomendaciones guardadas localmente.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -68,8 +70,10 @@ class _HistoryPageState extends State<HistoryPage> {
     setState(() {
       historial = [];
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Historial borrado correctamente')),
+    showTopSnackBar(
+      context,
+      'Historial borrado correctamente',
+      backgroundColor: Colors.green.shade700,
     );
   }
 
@@ -116,7 +120,10 @@ class _HistoryPageState extends State<HistoryPage> {
                       SizedBox(height: 16),
                       Text(
                         'No tienes análisis guardados',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey),
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey),
                       ),
                       SizedBox(height: 8),
                       Text(
@@ -132,12 +139,15 @@ class _HistoryPageState extends State<HistoryPage> {
                   itemCount: historial.length,
                   itemBuilder: (context, index) {
                     final rec = historial[index];
-                    
-                    final planAnterior = rec['plan_ia'] != null 
-                        ? (rec['plan_ia'] is String ? jsonDecode(rec['plan_ia']) : rec['plan_ia']) as Map<String, dynamic>? 
+
+                    final planAnterior = rec['plan_ia'] != null
+                        ? (rec['plan_ia'] is String
+                            ? jsonDecode(rec['plan_ia'])
+                            : rec['plan_ia']) as Map<String, dynamic>?
                         : null;
-                    
-                    final String nivelRentabilidad = planAnterior?['rentabilidad']?['nivel'] ?? 'Pendiente';
+
+                    final String nivelRentabilidad =
+                        planAnterior?['rentabilidad']?['nivel'] ?? 'Pendiente';
 
                     return Card(
                       margin: const EdgeInsets.only(bottom: 16),
@@ -153,18 +163,20 @@ class _HistoryPageState extends State<HistoryPage> {
                             MaterialPageRoute(
                               builder: (context) => ProjectDetailPage(
                                 cultivo: rec['cultivo'] ?? 'Cultivo',
-                                zona: '${rec['departamento']} - ${rec['municipio']}',
-                                presupuesto: rec['presupuesto']?.toString() ?? '0',
+                                zona:
+                                    '${rec['departamento']} - ${rec['municipio']}',
+                                presupuesto:
+                                    rec['presupuesto']?.toString() ?? '0',
                                 area: rec['area']?.toString() ?? '0',
                                 unidad: rec['unidad'] ?? 'm²',
                                 departamento: rec['departamento'] ?? '',
                                 municipio: rec['municipio'] ?? '',
                                 tipoTerreno: rec['tipo_terreno'],
-                                datosAnalisis: rec['datos_analisis'], 
+                                datosAnalisis: rec['datos_analisis'],
                                 proveedoresInsumos: rec['proveedores_insumos'],
                                 lat: rec['lat'],
                                 lon: rec['lon'],
-                                planGuardado: planAnterior, 
+                                planGuardado: planAnterior,
                               ),
                             ),
                           );
@@ -175,22 +187,27 @@ class _HistoryPageState extends State<HistoryPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
                                     child: Row(
                                       children: [
                                         CircleAvatar(
-                                          backgroundColor: Colors.green.shade100,
-                                          child: const Icon(Icons.agriculture, color: Colors.green),
+                                          backgroundColor:
+                                              Colors.green.shade100,
+                                          child: const Icon(Icons.agriculture,
+                                              color: Colors.green),
                                         ),
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                rec['cultivo'] ?? 'Cultivo Desconocido',
+                                                rec['cultivo'] ??
+                                                    'Cultivo Desconocido',
                                                 style: const TextStyle(
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 16,
@@ -200,7 +217,9 @@ class _HistoryPageState extends State<HistoryPage> {
                                               ),
                                               Text(
                                                 '${rec['municipio']}, ${rec['departamento']}',
-                                                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                                style: TextStyle(
+                                                    color: Colors.grey.shade600,
+                                                    fontSize: 12),
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                               ),
@@ -214,15 +233,18 @@ class _HistoryPageState extends State<HistoryPage> {
                                   Flexible(
                                     fit: FlexFit.loose,
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 6),
                                       decoration: BoxDecoration(
-                                        color: _getBadgeColor(nivelRentabilidad).withAlpha((0.15 * 255).round()),
+                                        color: _getBadgeColor(nivelRentabilidad)
+                                            .withAlpha((0.15 * 255).round()),
                                         borderRadius: BorderRadius.circular(20),
                                       ),
                                       child: Text(
                                         nivelRentabilidad,
                                         style: TextStyle(
-                                          color: _getBadgeColor(nivelRentabilidad),
+                                          color:
+                                              _getBadgeColor(nivelRentabilidad),
                                           fontWeight: FontWeight.bold,
                                           fontSize: 12,
                                         ),
@@ -236,11 +258,24 @@ class _HistoryPageState extends State<HistoryPage> {
                               const Divider(height: 24, thickness: 1),
                               // 🔥 SE CORRIGIERON LOS CONTENEDORES CON EXPANDED PARA EVITAR EL OVERFLOW MARCADO EN AMARILLO
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Expanded(child: _metaInfo(Icons.payments, 'Presupuesto', '\$${rec['presupuesto']}')),
-                                  Expanded(child: _metaInfo(Icons.landscape, 'Superficie', '${rec['area']} ${rec['unidad'] ?? "m²"}')),
-                                  Expanded(child: _metaInfo(Icons.calendar_today, 'Evaluado el', _formatearFecha(rec['fecha']))),
+                                  Expanded(
+                                      child: _metaInfo(
+                                          Icons.payments,
+                                          'Presupuesto',
+                                          '\$${rec['presupuesto']}')),
+                                  Expanded(
+                                      child: _metaInfo(
+                                          Icons.landscape,
+                                          'Superficie',
+                                          '${rec['area']} ${rec['unidad'] ?? "m²"}')),
+                                  Expanded(
+                                      child: _metaInfo(
+                                          Icons.calendar_today,
+                                          'Evaluado el',
+                                          _formatearFecha(rec['fecha']))),
                                 ],
                               ),
                             ],
@@ -260,7 +295,7 @@ class _HistoryPageState extends State<HistoryPage> {
         Icon(icono, size: 20, color: Colors.grey.shade600),
         const SizedBox(height: 4),
         Text(
-          etiqueta, 
+          etiqueta,
           style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -271,7 +306,8 @@ class _HistoryPageState extends State<HistoryPage> {
           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           textAlign: TextAlign.center,
           maxLines: 1,
-          overflow: TextOverflow.ellipsis, // Corta el texto largo con '...' de forma segura
+          overflow: TextOverflow
+              .ellipsis, // Corta el texto largo con '...' de forma segura
         ),
       ],
     );

@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../prompts/project_detail_prompt.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/api_config.dart';
 
@@ -49,9 +48,6 @@ class _ProjectDetailPageState
   String? error;
   Map<String, dynamic>? datosProyecto;
 
-  static const String apiKey =
-      ApiConfig.openAiApiKey;
-
   @override
   void initState() {
     super.initState();
@@ -63,90 +59,37 @@ class _ProjectDetailPageState
     }
   }
 
-  String _formatearDatosAnalisis() {
-    final buf = StringBuffer();
-
-    if (widget.datosAnalisis == null) return '';
-
-    final data = widget.datosAnalisis!;
-
-    final clima = data['clima']?['data'];
-
-    if (clima != null) {
-      buf.writeln(
-        'CLIMA: Temp ${clima['current']?['temperature']}°C, '
-        'Hum ${clima['current']?['humidity']}%, '
-        'Precip ${clima['daily']?['precipitation_sum']}mm',
-      );
-    }
-
-    final suelo = data['suelo']?['data'];
-
-    if (suelo != null) {
-      buf.writeln(
-        'SUELO: pH ${suelo['ph']}, '
-        'Arcilla ${suelo['clay']}%, '
-        'Arena ${suelo['sand']}%',
-      );
-    }
-
-    final insumos = data['insumos']?['data'];
-
-    if (insumos != null) {
-      buf.writeln(
-        'ÍNDICE INSUMOS: '
-        'Total ${insumos['indice_total']}, '
-        'Fertilizantes ${insumos['total_fertilizantes']}, '
-        'Plaguicidas ${insumos['total_plaguicidas']}',
-      );
-    }
-
-    return buf.toString();
-  }
-
 Future<void> _generarPlanDetallado() async {
     try {
-      final datosAnalisisStr = _formatearDatosAnalisis();
-
-      final prompt = ProjectDetailPrompt.build(
-        cultivo: widget.cultivo,
-        departamento: widget.departamento,
-        municipio: widget.municipio,
-        presupuesto: widget.presupuesto,
-        area: widget.area,
-        unidad: widget.unidad,
-        tipoTerreno: widget.tipoTerreno,
-        datosAnalisis: datosAnalisisStr.isNotEmpty ? datosAnalisisStr : null,
-      );
-
+      // 🔥 CAMBIO: ya no se llama a OpenAI directamente desde el celular.
+      // El backend Flask (/plan-cultivo) es quien busca los parámetros
+      // técnicos, hace todos los cálculos (plantas/ha, costos, área
+      // financiable, rentabilidad) y solo le pide a la IA que redacte el
+      // texto final. Aquí simplemente se envían los mismos datos que antes
+      // se usaban para armar el prompt, y se recibe de vuelta el mismo
+      // esquema JSON que ya consume el resto de esta pantalla.
       final response = await http.post(
-        Uri.parse('https://api.openai.com/v1/chat/completions'),
+        Uri.parse('${ApiConfig.baseUrl}/plan-cultivo'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $apiKey',
         },
         body: jsonEncode({
-          "model": "gpt-4.1-mini",
-          "messages": [
-            {
-              "role": "user",
-              "content": prompt,
-            }
-          ],
-          "temperature": 0.3,
-          "max_tokens": 2000,
+          "cultivo": widget.cultivo,
+          "departamento": widget.departamento,
+          "municipio": widget.municipio,
+          "lat": widget.lat,
+          "lon": widget.lon,
+          "presupuesto": widget.presupuesto,
+          "area": widget.area,
+          "unidad": widget.unidad,
+          "tipo_terreno": widget.tipoTerreno,
+          "datos_analisis": widget.datosAnalisis,
         }),
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        String contenido = data['choices'][0]['message']['content'].trim();
-
-        contenido = contenido
-            .replaceAll('```json', '')
-            .replaceAll('```', '');
-
-        final Map<String, dynamic> plan = jsonDecode(contenido);
+        final Map<String, dynamic> plan =
+            jsonDecode(response.body) as Map<String, dynamic>;
 
         // =========================================================================
         // 🔥 AQUÍ ES DONDE VA EL GUARDADO EN EL HISTORIAL

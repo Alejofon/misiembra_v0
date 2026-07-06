@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'project_detail_page.dart';
-import '../prompts/options_prompt.dart';
 import '../services/api_misiembra_service.dart';
 import '../config/api_config.dart';
 
@@ -41,9 +40,6 @@ class _OptionsPageState extends State<OptionsPage> {
   List<String> opciones = [];
   String? error;
   Map<String, dynamic>? datosAnalisis; // Guarda la respuesta completa de la API
-
-  static const String apiKey =
-      ApiConfig.openAiApiKey; // ← Usa
 
   @override
   void initState() {
@@ -95,99 +91,44 @@ class _OptionsPageState extends State<OptionsPage> {
 
   Map<String, dynamic>? proveedoresInsumos;
 
-  // Convierte la respuesta de la API en un texto plano que el prompt entienda
-  String _formatearParaPrompt(Map<String, dynamic> apiData) {
-    final buf = StringBuffer();
-
-    // Añadir datos del agricultor (esencial para la validación)
-    buf.writeln('ÁREA: ${widget.area} ${widget.unidad}');
-    buf.writeln('PRESUPUESTO: ${widget.presupuesto} COP');
-
-    final clima = apiData['clima']?['data'];
-    if (clima != null) {
-      buf.writeln('CLIMA ACTUAL:');
-      buf.writeln(
-        'Temp: ${clima['current']?['temperature']}°C, Hum: ${clima['current']?['humidity']}%, Precip: ${clima['daily']?['precipitation_sum']}mm, ET0: ${clima['daily']?['evapotranspiration']}mm',
-      );
-    }
-
-    final suelo = apiData['suelo']?['data'];
-    if (suelo != null) {
-      buf.writeln(
-        'SUELO (0-5cm): pH ${suelo['ph']}, Arcilla ${suelo['clay']}%, Arena ${suelo['sand']}%',
-      );
-    }
-
-    final insumos = apiData['insumos']?['data'];
-    if (insumos != null) {
-      buf.writeln(
-        'ÍNDICE INSUMOS (base 100): Total ${insumos['indice_total']}, Fertilizantes ${insumos['total_fertilizantes']}, Plaguicidas ${insumos['total_plaguicidas']}',
-      );
-    }
-
-    final precios = apiData['precios_mercado']?['por_grupo'];
-    if (precios != null) {
-      buf.writeln('PRECIOS PROMEDIO (COP/kg):');
-      precios.forEach((grupo, datos) {
-        final stats = datos['estadisticas'];
-        if (stats != null && stats['total_productos'] > 0) {
-          buf.writeln(
-            '- $grupo: prom ${stats['precio_promedio_grupo']}, más caro ${stats['producto_mas_caro']} (${stats['precio_mas_caro']}), más barato ${stats['producto_mas_barato']} (${stats['precio_mas_barato']})',
-          );
-        }
-      });
-    }
-
-    return buf.toString();
-  }
-
-  // Genera las opciones con el prompt, incluyendo datos reales si existen
+  // Genera las opciones llamando al backend, que busca candidatos con datos
+  // reales (búsqueda web restringida a fuentes agrícolas confiables),
+  // calcula la rentabilidad de cada uno con el presupuesto/área reales, y
+  // solo devuelve los que efectivamente son viables. Ya no arma ningún
+  // prompt aquí ni llama a OpenAI directamente.
   Future<void> generarOpciones() async {
     try {
-      String? datosRendimiento;
-      if (datosAnalisis != null) {
-        datosRendimiento = _formatearParaPrompt(datosAnalisis!);
-      }
-
-      final prompt = OptionsPrompt.build(
-        departamento: widget.departamento,
-        municipio: widget.municipio,
-        presupuesto: widget.presupuesto,
-        area: widget.area,
-        unidad: widget.unidad,
-        tipoTerreno: widget.tipoTerreno,
-        datosAnalisis: datosRendimiento, // ← antes era "datosRendimiento"
-      );
-
       final response = await http.post(
-        Uri.parse('https://api.openai.com/v1/chat/completions'),
+        Uri.parse('${ApiConfig.baseUrl}/opciones-cultivo'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $apiKey',
         },
         body: jsonEncode({
-          "model": "gpt-4.1-mini",
-          "messages": [
-            {"role": "user", "content": prompt},
-          ],
-          "temperature": 0.3,
-          "max_tokens": 150,
+          "departamento": widget.departamento,
+          "municipio": widget.municipio,
+          "lat": widget.lat,
+          "lon": widget.lon,
+          "presupuesto": widget.presupuesto,
+          "area": widget.area,
+          "unidad": widget.unidad,
+          "tipo_terreno": widget.tipoTerreno,
+          "datos_analisis": datosAnalisis,
         }),
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final contenido = data['choices'][0]['message']['content'] as String;
-
-        final lista = contenido
-            .split('\n')
-            .where((linea) => linea.trim().isNotEmpty)
-            .map((linea) => linea.trim())
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final lista = (data['opciones'] as List<dynamic>? ?? [])
+            .map((e) => e.toString())
             .toList();
 
         setState(() {
-          opciones = lista.take(5).toList();
+          opciones = lista;
           cargando = false;
+          if (lista.isEmpty) {
+            error = data['mensaje'] as String? ??
+                'No se encontraron cultivos viables para estos parámetros.';
+          }
         });
       } else {
         throw Exception('Error ${response.statusCode}');

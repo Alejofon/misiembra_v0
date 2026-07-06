@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'home_page.dart';
 import '../services/location_service.dart';
 import '../services/geocoding_service.dart';
+import '../utils/snackbar_utils.dart';
 
 class StartPage extends StatefulWidget {
   const StartPage({super.key});
@@ -50,41 +51,38 @@ class _StartPageState extends State<StartPage> {
             departamentoSeleccionado =
                 geocoded['departamento'] ?? 'No disponible';
 
-            municipioSeleccionado =
-                geocoded['municipio'] ?? 'No disponible';
+            municipioSeleccionado = geocoded['municipio'] ?? 'No disponible';
           });
 
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Ubicación obtenida correctamente'),
-                backgroundColor: Colors.green,
-              ),
+            showTopSnackBar(
+              context,
+              'Ubicación obtenida correctamente',
+              backgroundColor: Colors.green.shade700,
             );
           }
         } else if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Ubicación obtenida, pero no se pudo determinar la región'),
-              backgroundColor: Colors.orange,
-            ),
+          showTopSnackBar(
+            context,
+            'Ubicación obtenida, pero no se pudo determinar la región',
+            backgroundColor: Colors.orange.shade700,
           );
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No se pudo obtener la ubicación'),
-            ),
+          showTopSnackBar(
+            context,
+            'No se pudo obtener la ubicación',
+            backgroundColor: Colors.red.shade700,
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al obtener ubicación: $e'),
-          ),
+        showTopSnackBar(
+          context,
+          'Error al obtener ubicación: $e',
+          backgroundColor: Colors.red.shade700,
         );
       }
     } finally {
@@ -96,9 +94,10 @@ class _StartPageState extends State<StartPage> {
     return lat != null && lon != null;
   }
 
+  bool get _puedeContinuar => validarCampos();
+
   Future<void> saveProfile() async {
-    final SharedPreferences prefs =
-        await SharedPreferences.getInstance();
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
 
     await prefs.setString(
       'departamento',
@@ -114,11 +113,10 @@ class _StartPageState extends State<StartPage> {
     await prefs.setDouble('lon', lon!);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Ubicación guardada correctamente'),
-          backgroundColor: Colors.green,
-        ),
+      showTopSnackBar(
+        context,
+        'Ubicación guardada correctamente',
+        backgroundColor: Colors.green.shade700,
       );
     }
   }
@@ -135,19 +133,15 @@ class _StartPageState extends State<StartPage> {
           padding: const EdgeInsets.all(20),
           child: SingleChildScrollView(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 20),
-
                 const Icon(
                   Icons.agriculture,
                   size: 100,
                   color: Colors.green,
                 ),
-
                 const SizedBox(height: 25),
-
                 const Text(
                   'Bienvenido a MiSiembra',
                   textAlign: TextAlign.center,
@@ -156,9 +150,7 @@ class _StartPageState extends State<StartPage> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
                 const Text(
                   'MiSiembra es una aplicación orientada a apoyar la planificación agrícola mediante recomendaciones inteligentes basadas en ubicación geográfica y análisis contextual del terreno.',
                   textAlign: TextAlign.center,
@@ -167,9 +159,7 @@ class _StartPageState extends State<StartPage> {
                     height: 1.6,
                   ),
                 ),
-
                 const SizedBox(height: 15),
-
                 const Text(
                   'La aplicación utiliza datos climáticos, información del suelo y análisis ambientales para generar recomendaciones agrícolas adaptadas a cada región.',
                   textAlign: TextAlign.center,
@@ -178,13 +168,10 @@ class _StartPageState extends State<StartPage> {
                     height: 1.5,
                   ),
                 ),
-
                 const SizedBox(height: 40),
-
                 obteniendoUbicacion
                     ? const Center(
-                        child:
-                            CircularProgressIndicator(),
+                        child: CircularProgressIndicator(),
                       )
                     : ElevatedButton.icon(
                         icon: const Icon(
@@ -196,31 +183,25 @@ class _StartPageState extends State<StartPage> {
                             fontSize: 16,
                           ),
                         ),
-                        style:
-                            ElevatedButton.styleFrom(
-                          padding:
-                              const EdgeInsets.symmetric(
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
                             vertical: 18,
                           ),
+                          backgroundColor: Colors.green.shade700,
+                          foregroundColor: Colors.white,
                         ),
-                        onPressed:
-                            _usarUbicacionActual,
+                        onPressed: _usarUbicacionActual,
                       ),
-
                 const SizedBox(height: 25),
-
                 if (lat != null && lon != null)
                   Card(
                     elevation: 2,
                     color: Colors.green.shade50,
-                    shape:
-                        RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: Padding(
-                      padding:
-                          const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(20),
                       child: Column(
                         children: [
                           const Icon(
@@ -228,26 +209,19 @@ class _StartPageState extends State<StartPage> {
                             color: Colors.green,
                             size: 45,
                           ),
-
                           const SizedBox(height: 15),
-
                           const Text(
                             'Ubicación detectada correctamente',
-                            textAlign:
-                                TextAlign.center,
+                            textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 16,
-                              fontWeight:
-                                  FontWeight.bold,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-
                           const SizedBox(height: 10),
-
                           Text(
                             '$departamentoSeleccionado - $municipioSeleccionado',
-                            textAlign:
-                                TextAlign.center,
+                            textAlign: TextAlign.center,
                             style: const TextStyle(
                               fontSize: 15,
                             ),
@@ -256,46 +230,44 @@ class _StartPageState extends State<StartPage> {
                       ),
                     ),
                   ),
-
                 const SizedBox(height: 40),
-
                 ElevatedButton(
-                  onPressed: () async {
-                    if (!validarCampos()) {
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Primero debes obtener tu ubicación',
-                          ),
-                          backgroundColor:
-                              Colors.red,
-                        ),
-                      );
+                  onPressed: _puedeContinuar
+                      ? () async {
+                          if (!validarCampos()) {
+                            showTopSnackBar(
+                              context,
+                              'Primero debes obtener tu ubicación',
+                              backgroundColor: Colors.red.shade700,
+                            );
 
-                      return;
-                    }
+                            return;
+                          }
 
-                    final navigator =
-                        Navigator.of(context);
+                          final navigator = Navigator.of(context);
 
-                    await saveProfile();
+                          await saveProfile();
 
-                    if (!mounted) return;
+                          if (!mounted) return;
 
-                    navigator.pushReplacement(
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            const HomePage(),
-                      ),
-                    );
-                  },
-                  style:
-                      ElevatedButton.styleFrom(
-                    padding:
-                        const EdgeInsets.symmetric(
+                          navigator.pushReplacement(
+                            MaterialPageRoute(
+                              builder: (_) => const HomePage(),
+                            ),
+                          );
+                        }
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
                       vertical: 18,
                     ),
+                    backgroundColor: _puedeContinuar
+                        ? Colors.green.shade800
+                        : Colors.green.shade300,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.green.shade200,
+                    disabledForegroundColor: Colors.white.withOpacity(0.9),
+                    elevation: _puedeContinuar ? 3 : 1,
                   ),
                   child: const Text(
                     'Continuar',

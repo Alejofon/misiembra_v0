@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'history_page.dart';
 import 'options_page.dart';
+import '../utils/number_format.dart';
+import '../utils/snackbar_utils.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -13,11 +15,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final TextEditingController presupuestoController =
-      TextEditingController();
+  final TextEditingController presupuestoController = TextEditingController();
 
-  final TextEditingController extensionController =
-      TextEditingController();
+  final TextEditingController extensionController = TextEditingController();
 
   String? departamento;
   String? municipio;
@@ -53,15 +53,12 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _cargarPerfil() async {
-    final prefs =
-        await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
 
     setState(() {
-      departamento =
-          prefs.getString('departamento');
+      departamento = prefs.getString('departamento');
 
-      municipio =
-          prefs.getString('municipio');
+      municipio = prefs.getString('municipio');
 
       lat = prefs.getDouble('lat');
 
@@ -70,15 +67,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   bool validarCampos() {
-    if (presupuestoController.text
-        .trim()
-        .isEmpty) {
+    if (presupuestoController.text.trim().isEmpty) {
       return false;
     }
 
-    if (extensionController.text
-        .trim()
-        .isEmpty) {
+    if (extensionController.text.trim().isEmpty) {
       return false;
     }
 
@@ -93,23 +86,22 @@ class _HomePageState extends State<HomePage> {
     return true;
   }
 
+  bool get _puedeConsultar => validarCampos();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title:
-            const Text('MiSiembra - Consulta'),
+        title: const Text('MiSiembra - Consulta'),
         centerTitle: true,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: SingleChildScrollView(
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 10),
-
               const Text(
                 'Planificación agrícola inteligente',
                 textAlign: TextAlign.center,
@@ -118,9 +110,7 @@ class _HomePageState extends State<HomePage> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               const SizedBox(height: 20),
-
               const Text(
                 'MiSiembra analiza condiciones geográficas y variables del terreno para generar recomendaciones agrícolas contextualizadas y apoyar la toma de decisiones productivas.',
                 textAlign: TextAlign.center,
@@ -129,20 +119,15 @@ class _HomePageState extends State<HomePage> {
                   height: 1.5,
                 ),
               ),
-
               const SizedBox(height: 25),
-
               Card(
                 elevation: 2,
                 color: Colors.green.shade50,
-                shape:
-                    RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Padding(
-                  padding:
-                      const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
                       const Icon(
@@ -150,27 +135,18 @@ class _HomePageState extends State<HomePage> {
                         color: Colors.green,
                         size: 35,
                       ),
-
                       const SizedBox(width: 12),
-
                       Expanded(
                         child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment
-                                  .start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
                               'Ubicación detectada',
                               style: TextStyle(
-                                fontWeight:
-                                    FontWeight
-                                        .bold,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-
-                            const SizedBox(
-                                height: 4),
-
+                            const SizedBox(height: 4),
                             Text(
                               '$departamento - $municipio',
                             ),
@@ -181,24 +157,18 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 25),
-
               ElevatedButton(
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder:
-                          (context) =>
-                              const HistoryPage(),
+                      builder: (context) => const HistoryPage(),
                     ),
                   );
                 },
-                style:
-                    ElevatedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
                     vertical: 18,
                   ),
                 ),
@@ -209,164 +179,124 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 30),
-
               TextField(
-                controller:
-                    presupuestoController,
-                keyboardType:
-                    TextInputType.number,
+                controller: presupuestoController,
+                keyboardType: TextInputType.number,
                 inputFormatters: [
-                  FilteringTextInputFormatter
-                      .digitsOnly,
+                  FilteringTextInputFormatter.digitsOnly,
                 ],
-                decoration:
-                    const InputDecoration(
-                  labelText:
-                      'Presupuesto disponible (COP)',
-                  hintText:
-                      'Ejemplo: 1500000',
-                  border:
-                      OutlineInputBorder(),
+                onChanged: (value) {
+                  final formatted = formatNumberWithDots(value);
+                  if (formatted != presupuestoController.text) {
+                    presupuestoController.value = TextEditingValue(
+                      text: formatted,
+                      selection:
+                          TextSelection.collapsed(offset: formatted.length),
+                    );
+                  }
+                  setState(() {});
+                },
+                decoration: const InputDecoration(
+                  labelText: 'Presupuesto disponible (COP)',
+                  hintText: 'Ejemplo: 1.500.000',
+                  border: OutlineInputBorder(),
                 ),
               ),
-
               const SizedBox(height: 20),
-
               TextField(
-                controller:
-                    extensionController,
-                keyboardType:
-                    TextInputType.number,
+                controller: extensionController,
+                keyboardType: TextInputType.number,
                 inputFormatters: [
-                  FilteringTextInputFormatter
-                      .digitsOnly,
+                  FilteringTextInputFormatter.digitsOnly,
                 ],
-                decoration:
-                    const InputDecoration(
-                  labelText:
-                      'Extensión aproximada del terreno',
+                decoration: const InputDecoration(
+                  labelText: 'Extensión aproximada del terreno',
                   hintText: 'Ejemplo: 2',
-                  border:
-                      OutlineInputBorder(),
+                  border: OutlineInputBorder(),
                 ),
+                onChanged: (_) => setState(() {}),
               ),
-
               const SizedBox(height: 20),
-
-              DropdownButtonFormField<
-                  String>(
-                decoration:
-                    const InputDecoration(
-                  labelText:
-                      'Unidad de medida',
-                  border:
-                      OutlineInputBorder(),
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: 'Unidad de medida',
+                  border: OutlineInputBorder(),
                 ),
-                initialValue:
-                    unidadSeleccionada,
-                items: unidadesMedida
-                    .map((String unidad) {
-                  return DropdownMenuItem<
-                      String>(
+                initialValue: unidadSeleccionada,
+                items: unidadesMedida.map((String unidad) {
+                  return DropdownMenuItem<String>(
                     value: unidad,
                     child: Text(unidad),
                   );
                 }).toList(),
                 onChanged: (value) {
                   setState(() {
-                    unidadSeleccionada =
-                        value;
+                    unidadSeleccionada = value;
                   });
                 },
               ),
-
               const SizedBox(height: 20),
-
-              DropdownButtonFormField<
-                  String>(
-                decoration:
-                    const InputDecoration(
-                  labelText:
-                      'Tipo de terreno (opcional)',
-                  border:
-                      OutlineInputBorder(),
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: 'Tipo de terreno (opcional)',
+                  border: OutlineInputBorder(),
                 ),
-                initialValue:
-                    tipoTerrenoSeleccionado,
-                items: tiposTerreno
-                    .map((String tipo) {
-                  return DropdownMenuItem<
-                      String>(
+                initialValue: tipoTerrenoSeleccionado,
+                items: tiposTerreno.map((String tipo) {
+                  return DropdownMenuItem<String>(
                     value: tipo,
                     child: Text(tipo),
                   );
                 }).toList(),
                 onChanged: (value) {
                   setState(() {
-                    tipoTerrenoSeleccionado =
-                        value;
+                    tipoTerrenoSeleccionado = value;
                   });
                 },
               ),
-
               const SizedBox(height: 35),
-
               ElevatedButton(
-                onPressed: () {
-                  if (!validarCampos()) {
-                    ScaffoldMessenger.of(
-                            context)
-                        .showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Completa todos los campos requeridos',
-                        ),
-                      ),
-                    );
+                onPressed: _puedeConsultar
+                    ? () {
+                        if (!validarCampos()) {
+                          showTopSnackBar(
+                            context,
+                            'Completa todos los campos requeridos',
+                            backgroundColor: Colors.red.shade700,
+                          );
 
-                    return;
-                  }
+                          return;
+                        }
 
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          OptionsPage(
-                        presupuesto:
-                            presupuestoController
-                                .text,
-
-                        area:
-                            extensionController
-                                .text,
-
-                        unidad:
-                            unidadSeleccionada!,
-
-                        tipoTerreno:
-                            tipoTerrenoSeleccionado,
-
-                        departamento:
-                            departamento ??
-                                '',
-
-                        municipio:
-                            municipio ?? '',
-
-                        lat: lat,
-                        lon: lon,
-                      ),
-                    ),
-                  );
-                },
-                style:
-                    ElevatedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => OptionsPage(
+                              presupuesto: presupuestoController.text,
+                              area: extensionController.text,
+                              unidad: unidadSeleccionada!,
+                              tipoTerreno: tipoTerrenoSeleccionado,
+                              departamento: departamento ?? '',
+                              municipio: municipio ?? '',
+                              lat: lat,
+                              lon: lon,
+                            ),
+                          ),
+                        );
+                      }
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
                     vertical: 18,
                   ),
+                  backgroundColor: _puedeConsultar
+                      ? Colors.green.shade800
+                      : Colors.green.shade300,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.green.shade200,
+                  disabledForegroundColor: Colors.white.withOpacity(0.9),
+                  elevation: _puedeConsultar ? 3 : 1,
                 ),
                 child: const Text(
                   'Consultar recomendaciones',
@@ -375,7 +305,6 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 20),
             ],
           ),
