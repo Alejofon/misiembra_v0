@@ -25,7 +25,7 @@ void main() {
     final initialButton = tester.widget<ElevatedButton>(buttonFinder);
     final initialStyle = initialButton.style;
     final initialBackground =
-        initialStyle?.backgroundColor?.resolve({MaterialState.disabled});
+        initialStyle?.backgroundColor?.resolve({WidgetState.disabled});
     expect(initialBackground, isNotNull);
     expect(initialButton.onPressed, isNull);
 
@@ -40,7 +40,8 @@ void main() {
     expect(enabledBackground, isNotNull);
   });
 
-  testWidgets('Top snackbars use floating behavior and top margin',
+  testWidgets(
+      'showTopSnackBar muestra un aviso en la parte superior y ya no usa SnackBar',
       (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -62,11 +63,23 @@ void main() {
     );
 
     await tester.tap(find.text('Mostrar'));
-    await tester.pumpAndSettle();
+    await tester.pump(); // inserta el OverlayEntry
+    await tester.pump(const Duration(milliseconds: 300)); // completa la animación de entrada
 
-    final snackBar = tester.widget<SnackBar>(find.byType(SnackBar));
-    expect(snackBar.behavior, SnackBarBehavior.floating);
-    expect(snackBar.margin,
-        const EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 0));
+    // El aviso ahora es un toast propio basado en Overlay (arriba), no un
+    // SnackBar de Flutter (que Flutter ancla siempre abajo, tapando los botones).
+    expect(find.text('Mensaje de prueba'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
+
+    // Debe aparecer en la mitad SUPERIOR de la pantalla.
+    final pantalla = tester.getSize(find.byType(MaterialApp));
+    final centroAviso = tester.getCenter(find.text('Mensaje de prueba'));
+    expect(centroAviso.dy, lessThan(pantalla.height / 2));
+
+    // Dejar que se auto-cierre (timer de 3 s + animación de salida) para no
+    // dejar temporizadores pendientes en el test.
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    expect(find.text('Mensaje de prueba'), findsNothing);
   });
 }
